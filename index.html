@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0f5132" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Khảo Sát Lúa Thực Địa Đợt 1 • Định Vị GPS &amp; 3 Ảnh Code</title>
+  <title>Khảo Sát Lúa Thực Địa Đợt 1 • Định Vị GPS, Google Drive &amp; Zalo</title>
   <link rel="manifest" href="./manifest.json" />
   <link rel="icon" type="image/png" href="./icons/icon-192.png" />
   <link rel="apple-touch-icon" href="./icons/icon-192.png" />
@@ -17,18 +17,28 @@
   <!-- Toast Container -->
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
-  <!-- Top Sticky Header & Session Bar (Chỉ tập trung Đợt 1) -->
+  <!-- Top Sticky Header & Session Bar (Đợt 1) -->
   <header class="app-header">
     <div class="header-top">
       <div class="brand-group">
         <img src="./icons/icon-192.png" alt="Logo" class="brand-logo" />
         <div>
           <div class="brand-title">KHẢO SÁT LÚA THỰC ĐỊA — ĐỢT 1</div>
-          <div class="brand-subtitle">Định Vị GPS Chuẩn • Số Liệu 9 Cột • 3 Ảnh Có Code</div>
+          <div class="brand-subtitle">Định Vị GPS • Upload Google Drive &amp; Gửi Zalo</div>
         </div>
       </div>
       <div class="header-actions">
         <span id="netStatusBadge" class="net-badge net-online">ONLINE</span>
+        <a
+          href="https://drive.google.com/drive/folders/1N74C2GaXeEFN5C8oAbNU3amc0Y6fPASL?usp=sharing"
+          target="_blank"
+          rel="noopener"
+          class="icon-btn"
+          style="text-decoration:none;border-color:#facc15;color:#fde047;"
+          title="Mở thư mục Google Drive KS-LUA-3-TINH"
+        >
+          ☁️ Mở Drive
+        </a>
         <button type="button" id="btnShowQR" class="icon-btn" title="Mã QR mở trên điện thoại">
           📱 Mã QR
         </button>
@@ -57,7 +67,7 @@
 
           <div class="session-field">
             <label class="session-label">
-              <span>📍 Điểm đang mở &amp; Trạng thái lưu</span>
+              <span>📍 Điểm đang mở &amp; Trạng thái</span>
               <span id="headerPointStatusBadge" class="code-pill" style="background:#ea580c;color:#fff;">⏳ CHƯA LƯU</span>
             </label>
             <div style="display:flex;gap:6px;align-items:center;">
@@ -73,7 +83,7 @@
 
         <div class="progress-wrap">
           <div class="progress-info">
-            <span id="progressText">Tiến độ Đợt 1: Đã lưu 0 / 50 điểm ruộng</span>
+            <span id="progressText">Tiến độ Đợt 1: Đã lưu 0 / 50 điểm (Đã lên Drive: 0)</span>
             <span id="lastSavedTimeBadge" style="color:#86efac;font-size:0.78rem;">Chưa có điểm nào lưu</span>
           </div>
           <div class="progress-track">
@@ -124,7 +134,7 @@
           <div class="form-group" style="margin-bottom:0;">
             <label for="plotSelectQuick" class="form-label">
               Chọn lại điểm đã lưu hoặc chuyển nhanh (CT01–CT50)
-              <span class="form-sublabel">🟢 Đã lưu ✓ (bấm vào để xem/sửa lại) • 🟠 Chưa lưu</span>
+              <span class="form-sublabel">☁️ Đã lên Drive • 🟢 Đã lưu máy • 🟠 Chưa lưu</span>
             </label>
             <select id="plotSelectQuick" class="form-select">
               <!-- Populated with CT01..CT50 -->
@@ -470,21 +480,38 @@
         </div>
       </div>
 
-      <!-- KHU VỰC LƯU ĐIỂM RÕ RÀNG + TRẠNG THÁI ĐÃ LƯU + NÚT BẤM QUA ĐIỂM MỚI -->
+      <!-- KHU VỰC LƯU ĐIỂM + UPLOAD GOOGLE DRIVE + NÚT BẤM QUA ĐIỂM MỚI -->
       <div id="saveActionCard" class="card" style="background:linear-gradient(135deg,#0f5132 0%,#0b2e1d 100%);border:2.5px solid #facc15;">
         <!-- Hộp báo trạng thái đã lưu hay chưa ngay trước mắt người dùng -->
         <div id="saveStatusBanner" style="background:rgba(234,88,12,0.25);border:2px solid #fb923c;border-radius:12px;padding:12px;margin-bottom:12px;text-align:center;font-weight:900;font-size:1rem;color:#ffedd5;">
           ⏳ TRẠNG THÁI ĐIỂM <span class="lbl-current-stt">CT01</span>: CHƯA LƯU VÀO MÁY
         </div>
 
+        <!-- Khung hiển thị Tiến Trình Upload Google Drive trực tiếp (Hiện rõ đang chạy % và khi nào XONG 100%) -->
+        <div id="inlineUploadProgressBox" style="display:none;background:#06140c;border:2px solid #38bdf8;border-radius:12px;padding:12px;margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;font-weight:900;">
+            <span id="inlineUploadTitle" style="color:#38bdf8;">☁️ ĐANG UPLOAD LÊN GOOGLE DRIVE (KS-LUA-3-TINH)...</span>
+            <span id="inlineUploadPercent" class="code-pill" style="font-size:0.86rem;">0%</span>
+          </div>
+          <div class="progress-track" style="height:14px;margin-bottom:8px;">
+            <div id="inlineUploadBar" class="progress-fill" style="width:0%;background:linear-gradient(90deg,#0284c7,#22c55e);"></div>
+          </div>
+          <div id="inlineUploadStepList" style="font-size:0.82rem;line-height:1.5;color:#e2e8f0;"></div>
+        </div>
+
+        <!-- Nút chính 1: Lưu vào máy + Upload thẳng lên Google Drive -->
+        <button type="button" id="btnSaveAndUploadDrive" class="btn btn-zalo btn-lg btn-block" style="margin-bottom:10px;background:linear-gradient(90deg,#0284c7,#0369a1);border-color:#7dd3fc;font-size:1.04rem;">
+          ☁️ LƯU &amp; UPLOAD THẲNG LÊN GOOGLE DRIVE (<span class="lbl-current-stt">CT01</span>)
+        </button>
+
         <div class="form-grid-2 form-grid-2-mobile-stack" style="gap:10px;">
-          <!-- Nút 1: Lưu điểm hiện tại và giữ nguyên màn hình để kiểm tra/xác nhận -->
-          <button type="button" id="btnSaveRecordStay" class="btn btn-yellow btn-lg btn-block" style="font-size:1.05rem;">
-            💾 LƯU ĐIỂM <span class="lbl-current-stt">CT01</span>
+          <!-- Nút 2: Lưu vào bộ nhớ máy (Offline-first) -->
+          <button type="button" id="btnSaveRecordStay" class="btn btn-yellow btn-lg btn-block" style="font-size:1rem;">
+            💾 CHỈ LƯU VÀO MÁY (<span class="lbl-current-stt">CT01</span>)
           </button>
 
-          <!-- Nút 2: Qua điểm tiếp theo (CT02...) -->
-          <button type="button" id="btnGoNextPointBottom" class="btn btn-primary btn-lg btn-block" style="font-size:1.05rem;background:#22c55e;color:#052e16;border-color:#bbf7d0;">
+          <!-- Nút 3: Qua điểm tiếp theo (CT02...) -->
+          <button type="button" id="btnGoNextPointBottom" class="btn btn-primary btn-lg btn-block" style="font-size:1rem;background:#22c55e;color:#052e16;border-color:#bbf7d0;">
             ➕ BẤM QUA ĐIỂM MỚI (<span id="lblNextStt">CT02</span>) ➡️
           </button>
         </div>
@@ -494,7 +521,7 @@
             🧹 Xóa trắng form điểm này
           </button>
           <button type="button" id="btnJumpToMap" class="btn btn-outline btn-sm" style="flex:1;">
-            🗺️ Xem các điểm đã lưu trên Bản đồ
+            🗺️ Xem các điểm trên Bản đồ
           </button>
         </div>
       </div>
@@ -588,12 +615,87 @@
     </section>
 
     <!-- ==========================================
-         TAB 4: XUẤT GÓI .ZIP & GỬI QUA ZALO
+         TAB 4: CẢ 2 PHƯƠNG THỨC: GOOGLE DRIVE & ZALO (.ZIP)
          ========================================== -->
     <section id="tab-export" class="tab-panel">
+
+      <!-- PHƯƠNG THỨC 1: ĐƯA THẲNG LÊN GOOGLE DRIVE (KS-LUA-3-TINH) CÓ BÁO TIẾN TRÌNH KHI NÀO XONG -->
+      <div class="card card-highlight" style="border-color:#38bdf8;">
+        <div class="card-header">
+          <div class="card-title">☁️ Phương Thức 1: Đưa Thẳng Lên Thư Mục Google Drive</div>
+          <span class="col-badge" style="background:#0369a1;border-color:#7dd3fc;">KS-LUA-3-TINH</span>
+        </div>
+
+        <div style="background:rgba(2,132,199,0.14);border:1.5px solid #38bdf8;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:0.85rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <div>
+              📂 <strong>Thư mục đích:</strong> <code>KS-LUA-3-TINH</code> (ID: <code>1N74C2GaXeEFN5C8oAbNU3amc0Y6fPASL</code>)
+            </div>
+            <a
+              href="https://drive.google.com/drive/folders/1N74C2GaXeEFN5C8oAbNU3amc0Y6fPASL?usp=sharing"
+              target="_blank"
+              rel="noopener"
+              class="btn btn-yellow btn-sm"
+              style="padding:5px 10px;font-size:0.78rem;"
+            >
+              🔗 Mở thư mục Google Drive này
+            </a>
+          </div>
+        </div>
+
+        <!-- Khung báo Tiến Trình Upload Lên Drive (0% -> 100% + Thông báo khi nào XONG) -->
+        <div id="tabExportUploadProgressBox" style="display:none;background:#06140c;border:2px solid #facc15;border-radius:12px;padding:14px;margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-weight:900;font-size:1rem;">
+            <span id="tabExportUploadTitle" style="color:#fde047;">⏳ ĐANG TẢI LÊN GOOGLE DRIVE...</span>
+            <span id="tabExportUploadPercent" class="code-pill" style="font-size:0.9rem;">0%</span>
+          </div>
+          <div class="progress-track" style="height:16px;margin-bottom:10px;">
+            <div id="tabExportUploadBar" class="progress-fill" style="width:0%;background:linear-gradient(90deg,#0284c7,#22c55e);"></div>
+          </div>
+          <div id="tabExportUploadStepList" style="font-size:0.85rem;line-height:1.6;color:#f8fafc;"></div>
+        </div>
+
+        <button type="button" id="btnUploadAllToDrive" class="btn btn-zalo btn-lg btn-block" style="margin-bottom:10px;background:linear-gradient(90deg,#0284c7,#15803d);border-color:#4ade80;">
+          ☁️ ĐẨY TOÀN BỘ DỮ LIỆU &amp; ẢNH LÊN GOOGLE DRIVE (CÓ BÁO % KHI XONG)
+        </button>
+
+        <!-- Cấu hình Cổng tự động Google Apps Script (1 lần duy nhất) -->
+        <details style="background:var(--bg-input);border:1.5px solid var(--border-color);border-radius:10px;padding:10px 12px;font-size:0.84rem;">
+          <summary style="font-weight:800;color:#7dd3fc;cursor:pointer;">
+            ⚙️ Cài đặt Cổng tự động bắn thẳng vào thư mục KS-LUA-3-TINH (Không cần đăng nhập trên điện thoại)
+          </summary>
+          <div style="margin-top:10px;">
+            <p style="color:var(--text-secondary);margin-bottom:8px;">
+              Dán đường link Web App Google Apps Script (`https://script.google.com/macros/s/.../exec`) vào ô dưới đây để mọi máy điện thoại khi bấm Upload sẽ tự động ghi thẳng file `.zip`, `.xlsx` và 3 ảnh vào thư mục <code>1N74C2GaXeEFN5C8oAbNU3amc0Y6fPASL</code>:
+            </p>
+            <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+              <input
+                type="url"
+                id="driveWebhookUrlInput"
+                class="form-input"
+                style="flex:1;font-size:0.85rem;"
+                placeholder="https://script.google.com/macros/s/.../exec"
+              />
+              <button type="button" id="btnSaveWebhookUrl" class="btn btn-primary btn-sm">
+                💾 Lưu cổng Drive
+              </button>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button type="button" id="btnShowAppsScriptGuide" class="btn btn-yellow btn-sm">
+                📋 Lấy mã Apps Script gắn sẵn thư mục KS-LUA-3-TINH (30 giây)
+              </button>
+              <button type="button" id="btnTestDriveWebhook" class="btn btn-outline btn-sm">
+                🔄 Kiểm tra kết nối Drive
+              </button>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <!-- PHƯƠNG THỨC 2: ĐÓNG GÓI .ZIP GỬI QUA ZALO / TẢI VỀ MÁY -->
       <div class="card card-highlight">
         <div class="card-header">
-          <div class="card-title">📦 Đóng Gói Dữ Liệu Đợt 1 (.ZIP) &amp; Gửi Qua Zalo</div>
+          <div class="card-title">📦 Phương Thức 2: Đóng Gói .ZIP Gửi Qua Zalo / Tải Về Máy</div>
           <span class="col-badge">Excel • CSV • GIS • Ảnh Code</span>
         </div>
 
@@ -602,7 +704,7 @@
         </div>
 
         <button type="button" id="btnShareZaloZip" class="btn btn-zalo btn-lg btn-block" style="margin-bottom:10px;">
-          🚀 GỬI GÓI .ZIP ĐỢT 1 QUA ZALO (Web Share / Tải .ZIP)
+          🚀 GỬI GÓI .ZIP QUA ZALO / GOOGLE DRIVE APP (Web Share)
         </button>
 
         <div class="form-grid-2 form-grid-2-mobile-stack">
@@ -655,8 +757,8 @@
       <span>3. Đã Lưu (<span id="navBadgeSavedCount">0</span>)</span>
     </button>
     <button type="button" class="nav-tab" data-tab="tab-export">
-      <span class="nav-tab-icon">📤</span>
-      <span>4. Xuất &amp; Zalo</span>
+      <span class="nav-tab-icon">☁️</span>
+      <span>4. Drive &amp; Zalo</span>
     </button>
   </nav>
 
