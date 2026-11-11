@@ -1,4 +1,4 @@
-const CACHE_NAME = 'khao-sat-lua-pwa-v3.4';
+const CACHE_NAME = 'khao-sat-lua-pwa-v3.5';
 const TILE_CACHE_NAME = 'khao-sat-lua-tiles-v1';
 
 const STATIC_ASSETS = [

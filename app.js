@@ -14,6 +14,7 @@
   const CURRENT_ROUND = 1;
   const DRIVE_FOLDER_ID = '1N74C2GaXeEFN5C8oAbNU3amc0Y6fPASL';
   const DRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/1N74C2GaXeEFN5C8oAbNU3amc0Y6fPASL?usp=sharing';
+  const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbxm1wvub6wh1WH3Mg3-dqgBsOHWOsrdcNu8fNjvha2-2vfcTZqClMVUy6e-U730KV666w/exec';
 
   const RICE_STAGES = [
     { code: 0, vi: 'Chưa sạ / Làm đất', en: 'Not sown / Land prep', dasRange: 'Chưa xuống giống', defaultDas: null },
@@ -53,7 +54,7 @@
     surveyorName: localStorage.getItem('ksl_surveyorName') || 'Nguyễn Văn Minh',
     saveRawPhotos: localStorage.getItem('ksl_saveRawPhotos') === 'true',
     themeLight: localStorage.getItem('ksl_themeLight') === 'true',
-    gasWebAppUrl: localStorage.getItem('ksl_gasWebAppUrl') || '',
+    gasWebAppUrl: localStorage.getItem('ksl_gasWebAppUrl') || DEFAULT_GAS_URL,
     masterPlots: new Map(),
     surveyRecords: new Map(),
     currentPlotStt: 'CT01',
@@ -1581,38 +1582,47 @@
     });
   }
 
-  function postPayloadToAppsScript(gasUrl, payloadObj, onUploadProgress) {
-    return new Promise((resolve, reject) => {
-      const jsonStr = JSON.stringify(payloadObj);
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', gasUrl, true);
-      xhr.setRequestHeader('Content-Type', 'text/plain;charset=utf-8');
+  async function postPayloadToAppsScript(gasUrl, payloadObj, onUploadProgress) {
+    const jsonStr = JSON.stringify(payloadObj);
+    if (typeof onUploadProgress === 'function') onUploadProgress(35);
 
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable && typeof onUploadProgress === 'function') {
-          onUploadProgress((e.loaded / e.total) * 100);
-        }
-      };
+    try {
+      if (typeof onUploadProgress === 'function') onUploadProgress(65);
+      const resp = await fetch(gasUrl, {
+        method: 'POST',
+        body: jsonStr,
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+      });
+      if (typeof onUploadProgress === 'function') onUploadProgress(95);
 
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 400) {
-          try {
-            const parsed = JSON.parse(xhr.responseText);
-            if (parsed && parsed.ok === false) {
-              reject(new Error(parsed.error || 'Apps Script báo lỗi'));
-            } else {
-              resolve(parsed);
-            }
-          } catch (_) {
-            resolve({ ok: true });
+      if (resp.ok) {
+        try {
+          const parsed = await resp.json();
+          if (parsed && parsed.ok === false) {
+            throw new Error(parsed.error || 'Apps Script báo lỗi');
           }
-        } else {
-          reject(new Error(`HTTP ${xhr.status}`));
+          return parsed;
+        } catch (_) {
+          return { ok: true };
         }
-      };
-      xhr.onerror = () => reject(new Error('Không kết nối được tới Apps Script Web App'));
-      xhr.send(jsonStr);
-    });
+      }
+      throw new Error(`HTTP ${resp.status}`);
+    } catch (err) {
+      // Fallback: in case browser CORS blocks reading redirected response body, send with mode: 'no-cors'
+      if (typeof onUploadProgress === 'function') onUploadProgress(80);
+      try {
+        await fetch(gasUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          body: jsonStr,
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+        });
+        if (typeof onUploadProgress === 'function') onUploadProgress(100);
+        return { ok: true, fallbackNoCors: true };
+      } catch (err2) {
+        throw new Error('Lỗi gửi dữ liệu lên Google Drive: ' + (err.message || err2.message));
+      }
+    }
   }
 
   async function pushPackageDirectlyToGoogleDrive() {
