@@ -1,0 +1,26 @@
+{
+  "name": "Khảo Sát Lúa Thực Địa ĐBSCL - 9 Đợt × 50 Điểm",
+  "short_name": "Khảo Sát Lúa",
+  "description": "Ứng dụng PWA thu thập dữ liệu khảo sát lúa thực địa 9 đợt trên 50 điểm ruộng cố định, bản đồ vệ tinh dẫn đường, chụp 3 ảnh đóng dấu Code và gửi gói ZIP qua Zalo.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0b1911",
+  "theme_color": "#0f5132",
+  "lang": "vi-VN",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
