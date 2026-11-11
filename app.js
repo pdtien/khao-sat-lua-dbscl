@@ -12,30 +12,33 @@
   const DB_VERSION = 1;
   const TOTAL_TARGET_PLOTS = 50;
   const CURRENT_ROUND = 1;
+  const DRIVE_FOLDER_ID = '1N74C2GaXeEFN5C8oAbNU3amc0Y6fPASL';
   const DRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/1N74C2GaXeEFN5C8oAbNU3amc0Y6fPASL?usp=sharing';
 
   const RICE_STAGES = [
-    { code: 1, vi: 'Nảy mầm', en: 'Seedling', dasRange: '0–7 ngày' },
-    { code: 2, vi: 'Mạ', en: '2/3 leaves', dasRange: '8–14 ngày' },
-    { code: 3, vi: 'Đẻ nhánh', en: 'Tillering start', dasRange: '15–28 ngày' },
-    { code: 4, vi: 'Nhảy chồi', en: 'Tillering max', dasRange: '29–40 ngày' },
-    { code: 5, vi: 'Phân đòng', en: 'Stem Elongation', dasRange: '41–50 ngày' },
-    { code: 6, vi: 'Làm đòng', en: 'Booting', dasRange: '51–60 ngày' },
-    { code: 7, vi: 'Trổ cờ', en: 'Heading', dasRange: '61–67 ngày' },
-    { code: 8, vi: 'Trổ bông', en: 'Flowering', dasRange: '68–75 ngày' },
-    { code: 9, vi: 'Ngậm sữa', en: 'Milky stage', dasRange: '76–83 ngày' },
-    { code: 10, vi: 'Chín sữa', en: 'Milky-hard stage', dasRange: '84–90 ngày' },
-    { code: 11, vi: 'Đỏ đuôi', en: 'Maturing', dasRange: '91–97 ngày' },
-    { code: 12, vi: 'Chín', en: 'Maturity', dasRange: '98–110+ ngày' }
+    { code: 0, vi: 'Chưa sạ / Làm đất', en: 'Not sown / Land prep', dasRange: 'Chưa xuống giống', defaultDas: null },
+    { code: 1, vi: 'Nảy mầm', en: 'Seedling', dasRange: '0–7 ngày', defaultDas: 4 },
+    { code: 2, vi: 'Mạ', en: '2/3 leaves', dasRange: '8–14 ngày', defaultDas: 11 },
+    { code: 3, vi: 'Đẻ nhánh', en: 'Tillering start', dasRange: '15–28 ngày', defaultDas: 22 },
+    { code: 4, vi: 'Nhảy chồi', en: 'Tillering max', dasRange: '29–40 ngày', defaultDas: 35 },
+    { code: 5, vi: 'Phân đòng', en: 'Stem Elongation', dasRange: '41–50 ngày', defaultDas: 45 },
+    { code: 6, vi: 'Làm đòng', en: 'Booting', dasRange: '51–60 ngày', defaultDas: 55 },
+    { code: 7, vi: 'Trổ cờ', en: 'Heading', dasRange: '61–67 ngày', defaultDas: 64 },
+    { code: 8, vi: 'Trổ bông', en: 'Flowering', dasRange: '68–75 ngày', defaultDas: 71 },
+    { code: 9, vi: 'Ngậm sữa', en: 'Milky stage', dasRange: '76–83 ngày', defaultDas: 80 },
+    { code: 10, vi: 'Chín sữa', en: 'Milky-hard stage', dasRange: '84–90 ngày', defaultDas: 87 },
+    { code: 11, vi: 'Đỏ đuôi', en: 'Maturing', dasRange: '91–97 ngày', defaultDas: 94 },
+    { code: 12, vi: 'Chín', en: 'Maturity', dasRange: '98–110+ ngày', defaultDas: 102 },
+    { code: 13, vi: 'Đã thu hoạch / Gốc rạ', en: 'Harvested / Stubble', dasRange: 'Đã gặt xong', defaultDas: null }
   ];
 
   const VARIETIES_DBSCL = [
-    'OM5454', 'OM18', 'Đài Thơm 8', 'OM380', 'ST25',
+    'Chưa biết', 'OM5454', 'OM18', 'Đài Thơm 8', 'OM380', 'ST25',
     'ST24', 'IR50404', 'Jasmine 85', 'DS1', 'RVT'
   ];
 
   const SOWING_METHODS = [
-    'Sạ hàng', 'Sạ lan', 'Sạ cụm', 'Cấy', 'Drone'
+    'Chưa biết', 'Sạ hàng', 'Sạ lan', 'Sạ cụm', 'Cấy', 'Drone', 'Chưa sạ'
   ];
 
   const PHOTO_TYPES = {
@@ -50,6 +53,7 @@
     surveyorName: localStorage.getItem('ksl_surveyorName') || 'Nguyễn Văn Minh',
     saveRawPhotos: localStorage.getItem('ksl_saveRawPhotos') === 'true',
     themeLight: localStorage.getItem('ksl_themeLight') === 'true',
+    gasWebAppUrl: localStorage.getItem('ksl_gasWebAppUrl') || '',
     masterPlots: new Map(),
     surveyRecords: new Map(),
     currentPlotStt: 'CT01',
@@ -420,9 +424,12 @@
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = `stage-btn ${st.code === currentStage ? 'selected' : ''}`;
+      if (st.code === 0 || st.code === 13) {
+        btn.style.borderColor = st.code === currentStage ? '#facc15' : 'rgba(250, 204, 21, 0.45)';
+      }
       btn.dataset.stage = st.code;
       btn.innerHTML = `
-        <span class="stage-num">${st.code}</span>
+        <span class="stage-num" style="${st.code === 0 ? 'background:#ea580c;color:#fff;' : st.code === 13 ? 'background:#0284c7;color:#fff;' : ''}">${st.code}</span>
         <div>
           <span class="stage-text-vi">${st.vi}</span>
           <span class="stage-text-en">${st.en} (${st.dasRange})</span>
@@ -433,11 +440,80 @@
         document.querySelectorAll('#stagesGrid .stage-btn').forEach(b => {
           b.classList.toggle('selected', Number(b.dataset.stage) === st.code);
         });
+        const stageNoteEl = document.getElementById('stageNoteInput');
+        if (st.code === 0) {
+          if (stageNoteEl) stageNoteEl.value = 'Chưa sạ - Đang làm đất';
+          document.getElementById('sowingDateInput').value = '';
+          setSowingSource('Chưa sạ / Chưa rõ', false);
+        } else if (st.code === 13) {
+          if (stageNoteEl) stageNoteEl.value = 'Đã thu hoạch - Còn gốc rạ';
+          setSowingSource('Chưa sạ / Chưa rõ', false);
+        } else if (stageNoteEl && (stageNoteEl.value.startsWith('Chưa sạ') || stageNoteEl.value.startsWith('Đã thu hoạch'))) {
+          stageNoteEl.value = 'Đang có lúa';
+        }
+        syncStageStatusChips();
+        updateCombinedNotePreview();
+        updateDASAndStageHints();
         markFormDirty();
         reStampExistingPhotos();
       });
       grid.appendChild(btn);
     });
+  }
+
+  function syncStageStatusChips() {
+    const val = (document.getElementById('stageNoteInput')?.value || '').trim();
+    document.querySelectorAll('#stageStatusChips .chip-btn').forEach(b => {
+      b.classList.toggle('selected', b.getAttribute('data-stage-note') === val);
+    });
+  }
+
+  function setSowingSource(sourceVal, markDirty = false) {
+    const clean = sourceVal || 'Ước lượng';
+    const inp = document.getElementById('sowingSourceInput');
+    if (inp) inp.value = clean;
+    document.querySelectorAll('#sowingSourceChips .chip-btn').forEach(b => {
+      b.classList.toggle('selected', b.getAttribute('data-sow-source') === clean);
+    });
+    updateCombinedNotePreview();
+    updateDASAndStageHints();
+    if (markDirty) markFormDirty();
+    reStampExistingPhotos();
+  }
+
+  function estimateSowingDateByDAS(dasValue) {
+    if (dasValue === 'clear') {
+      document.getElementById('sowingDateInput').value = '';
+      setSowingSource('Chưa sạ / Chưa rõ', true);
+      showToast('🧹 Đã xóa ngày sạ (Chưa sạ / Đã thu hoạch)');
+      return;
+    }
+    let days = parseInt(dasValue, 10);
+    if (dasValue === 'stage') {
+      const stCode = parseInt(document.getElementById('selectedStageInput').value || '3', 10);
+      const stObj = RICE_STAGES.find(s => s.code === stCode);
+      if (!stObj || stObj.defaultDas === null) {
+        document.getElementById('sowingDateInput').value = '';
+        setSowingSource('Chưa sạ / Chưa rõ', true);
+        showToast('Giai đoạn hiện tại là Chưa sạ / Đã thu hoạch nên để trống Ngày sạ!');
+        return;
+      }
+      days = stObj.defaultDas;
+    }
+    if (isNaN(days) || days < 0) return;
+
+    const survDate = parseVNDate(document.getElementById('surveyDateTimeInput').value) || new Date();
+    const estDate = new Date(survDate.getTime());
+    estDate.setDate(estDate.getDate() - days);
+
+    const dd = String(estDate.getDate()).padStart(2, '0');
+    const mm = String(estDate.getMonth() + 1).padStart(2, '0');
+    const yyyy = estDate.getFullYear();
+    const formatted = `${dd}/${mm}/${yyyy}`;
+
+    document.getElementById('sowingDateInput').value = formatted;
+    setSowingSource('Ước lượng', true);
+    showToast(`⚡ Đã ước lượng Ngày sạ: ${formatted} (~${days} ngày trước)`);
   }
 
   function renderVarietyAndMethodChips() {
@@ -451,7 +527,8 @@
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = `chip-btn ${vInput.value.trim() === v ? 'selected' : ''}`;
-      btn.textContent = v;
+      btn.textContent = v === 'Chưa biết' ? '❓ Chưa biết' : v;
+      btn.dataset.val = v;
       btn.addEventListener('click', () => {
         vInput.value = v;
         syncVarietyMethodChips();
@@ -467,7 +544,8 @@
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = `chip-btn ${mInput.value.trim() === m ? 'selected' : ''}`;
-      btn.textContent = m;
+      btn.textContent = m === 'Chưa biết' ? '❓ Chưa biết' : m;
+      btn.dataset.val = m;
       btn.addEventListener('click', () => {
         mInput.value = m;
         syncVarietyMethodChips();
@@ -483,26 +561,25 @@
     const vVal = document.getElementById('varietyInput').value.trim();
     const mVal = document.getElementById('methodInput').value.trim();
     document.querySelectorAll('#varietyChips .chip-btn').forEach(b => {
-      b.classList.toggle('selected', b.textContent === vVal);
+      b.classList.toggle('selected', (b.dataset.val || b.textContent) === vVal);
     });
     document.querySelectorAll('#methodChips .chip-btn').forEach(b => {
-      b.classList.toggle('selected', b.textContent === mVal);
+      b.classList.toggle('selected', (b.dataset.val || b.textContent) === mVal);
     });
   }
 
   function updateCombinedNotePreview() {
-    const v = document.getElementById('varietyInput').value.trim();
-    const m = document.getElementById('methodInput').value.trim();
+    const v = document.getElementById('varietyInput').value.trim() || 'Chưa biết';
+    const m = document.getElementById('methodInput').value.trim() || 'Chưa biết';
+    const stageNote = (document.getElementById('stageNoteInput')?.value || '').trim();
     const extra = document.getElementById('roundExtraNoteInput').value.trim();
-    let base = '';
-    if (v && m) base = `${v} - ${m}`;
-    else if (v) base = v;
-    else if (m) base = m;
 
-    let combined = base;
-    if (extra) {
-      combined = base ? `${base} (${extra})` : extra;
-    }
+    let base = `${v} - ${m}`;
+    const details = [];
+    if (stageNote && stageNote !== 'Đang có lúa') details.push(stageNote);
+    if (extra) details.push(extra);
+
+    const combined = details.length > 0 ? `${base} (${details.join('; ')})` : base;
     document.getElementById('finalNotePreview').value = combined;
   }
 
@@ -546,18 +623,19 @@
   function updateDASAndStageHints() {
     const sowStr = document.getElementById('sowingDateInput').value.trim();
     const survStr = document.getElementById('surveyDateTimeInput').value.trim();
+    const sowSource = (document.getElementById('sowingSourceInput')?.value || 'Ước lượng').trim();
     const banner = document.getElementById('dasHintBanner');
     const das = computeDAS(sowStr, survStr);
 
     if (das === null) {
-      banner.innerHTML = '🌱 Nhập <strong>Ngày sạ/cấy (dd/mm/yyyy)</strong> để tự động tính số ngày sau sạ (NSS / DAS) và gợi ý giai đoạn lúa.';
+      banner.innerHTML = `🌱 Ngày sạ/cấy: <strong>${sowSource}</strong> • Bấm các nút <strong>⚡ Ước lượng nhanh</strong> ở trên hoặc nhập <code>dd/mm/yyyy</code> để tự tính tuổi lúa (NSS).`;
       return;
     }
     const suggestedCode = suggestStageFromDAS(das);
     const stObj = RICE_STAGES.find(s => s.code === suggestedCode);
     banner.innerHTML = `
-      ⏱️ Tuổi lúa tính đến ngày khảo sát: <strong>${das} ngày sau sạ/cấy (NSS/DAS)</strong>
-      ${stObj ? ` • Gợi ý: <strong>GĐ ${stObj.code} - ${stObj.vi} (${stObj.en})</strong> <button type="button" id="btnApplySuggestedStage" class="btn btn-yellow btn-sm" style="padding:2px 8px;font-size:0.74rem;margin-left:6px;">Chọn GĐ ${stObj.code}</button>` : ''}
+      ⏱️ Tuổi lúa: <strong>${das} ngày sau sạ (NSS)</strong> • Nguồn ngày sạ: <span style="color:#facc15;">${sowSource}</span>
+      ${stObj ? ` • Gợi ý: <strong>GĐ ${stObj.code} - ${stObj.vi}</strong> <button type="button" id="btnApplySuggestedStage" class="btn btn-yellow btn-sm" style="padding:2px 8px;font-size:0.74rem;margin-left:6px;">Chọn GĐ ${stObj.code}</button>` : ''}
     `;
     const btnApply = document.getElementById('btnApplySuggestedStage');
     if (btnApply && stObj) {
@@ -637,13 +715,18 @@
       yInput.value = Number(existingRec.y).toFixed(6);
       document.getElementById('surveyDateTimeInput').value = existingRec.surveyDateTime || formatNowDateTime();
       document.getElementById('sowingDateInput').value = existingRec.sowingDate || '';
-      document.getElementById('selectedStageInput').value = String(existingRec.growthStage || 3);
+      setSowingSource(existingRec.sowingSource || (existingRec.sowingDate ? 'Ước lượng' : 'Chưa sạ / Chưa rõ'), false);
+      document.getElementById('selectedStageInput').value = String(existingRec.growthStage !== undefined ? existingRec.growthStage : 3);
+      const stageNoteEl = document.getElementById('stageNoteInput');
+      if (stageNoteEl) {
+        stageNoteEl.value = existingRec.stageNote || (existingRec.growthStage === 0 ? 'Chưa sạ - Đang làm đất' : existingRec.growthStage === 13 ? 'Đã thu hoạch - Còn gốc rạ' : 'Đang có lúa');
+      }
       setWaterRegime(existingRec.waterRegime || '1', false);
       document.getElementById('waterM1').value = existingRec.waterM1 !== undefined ? existingRec.waterM1 : '';
       document.getElementById('waterM2').value = existingRec.waterM2 !== undefined ? existingRec.waterM2 : '';
       document.getElementById('waterM3').value = existingRec.waterM3 !== undefined ? existingRec.waterM3 : '';
       document.getElementById('waterAvgOutput').value = existingRec.waterLevelAvg || '';
-      document.getElementById('varietyInput').value = existingRec.variety || 'OM5454';
+      document.getElementById('varietyInput').value = existingRec.variety || 'Chưa biết';
       document.getElementById('methodInput').value = existingRec.method || 'Sạ hàng';
       document.getElementById('roundExtraNoteInput').value = existingRec.extraNote || '';
       document.getElementById('finalNotePreview').value = existingRec.note || '';
@@ -668,11 +751,14 @@
       document.getElementById('surveyDateTimeInput').value = formatNowDateTime();
       if (master && master.sowingDate) {
         document.getElementById('sowingDateInput').value = master.sowingDate;
+        setSowingSource(master.sowingSource || 'Ước lượng', false);
+      } else {
+        setSowingSource(document.getElementById('sowingSourceInput')?.value || 'Ước lượng', false);
       }
       if (master && master.variety) {
         document.getElementById('varietyInput').value = master.variety;
       } else if (!document.getElementById('varietyInput').value) {
-        document.getElementById('varietyInput').value = 'OM5454';
+        document.getElementById('varietyInput').value = 'Chưa biết';
       }
       if (master && master.method) {
         document.getElementById('methodInput').value = master.method;
@@ -694,6 +780,7 @@
     }
 
     renderStagesGrid();
+    syncStageStatusChips();
     syncVarietyMethodChips();
     updateCombinedNotePreview();
     updateDASAndStageHints();
@@ -1279,8 +1366,11 @@
     const waterRegime = document.getElementById('selectedWaterInput').value || '1';
     const waterAvg = waterRegime === '1' ? recalcWaterAverage() : '';
     const sowingDate = document.getElementById('sowingDateInput').value.trim();
-    const variety = document.getElementById('varietyInput').value.trim();
-    const method = document.getElementById('methodInput').value.trim();
+    const sowingSource = (document.getElementById('sowingSourceInput')?.value || (sowingDate ? 'Ước lượng' : 'Chưa sạ / Chưa rõ')).trim();
+    const growthStageNum = parseInt(document.getElementById('selectedStageInput').value || '3', 10);
+    const stageNote = (document.getElementById('stageNoteInput')?.value || (growthStageNum === 0 ? 'Chưa sạ - Đang làm đất' : growthStageNum === 13 ? 'Đã thu hoạch - Còn gốc rạ' : 'Đang có lúa')).trim();
+    const variety = document.getElementById('varietyInput').value.trim() || 'Chưa biết';
+    const method = document.getElementById('methodInput').value.trim() || 'Chưa biết';
     const extraNote = document.getElementById('roundExtraNoteInput').value.trim();
     updateCombinedNotePreview();
     const finalNote = document.getElementById('finalNotePreview').value.trim();
@@ -1295,13 +1385,15 @@
       x: Number(xVal).toFixed(6),
       y: Number(yVal).toFixed(6),
       surveyDateTime: document.getElementById('surveyDateTimeInput').value.trim() || formatNowDateTime(),
-      growthStage: parseInt(document.getElementById('selectedStageInput').value || '3', 10),
+      growthStage: growthStageNum,
+      stageNote,
       waterRegime,
       waterM1: waterRegime === '1' ? document.getElementById('waterM1').value : '',
       waterM2: waterRegime === '1' ? document.getElementById('waterM2').value : '',
       waterM3: waterRegime === '1' ? document.getElementById('waterM3').value : '',
       waterLevelAvg: waterAvg,
       sowingDate,
+      sowingSource,
       variety,
       method,
       extraNote,
@@ -1329,6 +1421,8 @@
       x: Number(xVal),
       y: Number(yVal),
       sowingDate,
+      sowingSource,
+      stageNote,
       variety,
       method,
       baseNote: finalNote,
@@ -1358,7 +1452,9 @@
           <div style="background:rgba(34,197,94,0.15);border:1.5px solid #4ade80;border-radius:10px;padding:12px;margin-bottom:12px;line-height:1.55;">
             <div>📍 <strong>Mã điểm ruộng:</strong> <span style="color:#facc15;font-weight:900;">${stt}</span> (Lưu lúc ${savedTimeStr})</div>
             <div>🛰️ <strong>Tọa độ đã chốt:</strong> X = <code>${record.x}</code>, Y = <code>${record.y}</code></div>
-            <div>🌾 <strong>Giai đoạn lúa:</strong> Mã ${record.growthStage} (${stObj ? stObj.vi : ''})</div>
+            <div>🌾 <strong>Giai đoạn lúa:</strong> Mã ${record.growthStage} (${stObj ? stObj.vi : ''}) • <em>${record.stageNote}</em></div>
+            <div>🌱 <strong>Ngày sạ/cấy:</strong> ${record.sowingDate || 'Trống'} (<span style="color:#fde047;">${record.sowingSource}</span>)</div>
+            <div>🌾 <strong>Giống &amp; PP:</strong> ${record.variety} - ${record.method}</div>
             <div>💧 <strong>Chế độ nước:</strong> Mã ${record.waterRegime}${record.waterLevelAvg ? ` (TB: ${record.waterLevelAvg} cm)` : ''}</div>
             <div>📸 <strong>Ảnh có Code đã lưu:</strong> ${photoCount} / 3 ảnh</div>
             <div style="margin-top:6px;padding-top:6px;border-top:1px dashed rgba(255,255,255,0.2);color:#86efac;font-weight:800;">
@@ -1366,7 +1462,7 @@
             </div>
           </div>
           <p style="font-size:0.9rem;color:#fef08a;font-weight:700;">
-            Bấm <strong>"➕ BẤM QUA ĐIỂM MỚI (${nextStt})"</strong> để đi đo điểm tiếp theo, hoặc khi đi xong hết hãy vào <strong>Mục 4 (Xuất Sau Khi Đi)</strong> để xuất 1 gói <code>.ZIP</code> duy nhất!
+            Bấm <strong>"➕ BẤM QUA ĐIỂM MỚI (${nextStt})"</strong> để đi đo điểm tiếp theo, hoặc khi đi xong hết hãy vào <strong>Mục 4 (Xuất Sau Khi Đi)</strong> để đẩy lên Google Drive!
           </p>
         `,
         buttons: [
@@ -1393,6 +1489,326 @@
     }
 
     return record;
+  }
+
+  // --- DIRECT GOOGLE DRIVE UPLOAD & ZIP EXPORT WITH 0% -> 100% PROGRESS ---
+  function getGasCodeTemplate() {
+    return [
+      `// MÃ GOOGLE APPS SCRIPT ĐẨY THẲNG FILE VÀO THƯ MỤC KS-LUA-3-TINH (${DRIVE_FOLDER_ID})`,
+      `function doPost(e) {`,
+      `  try {`,
+      `    var data = JSON.parse(e.postData.contents);`,
+      `    var folder = DriveApp.getFolderById('${DRIVE_FOLDER_ID}');`,
+      `    var out = {};`,
+      `    if (data.zipBase64 && data.zipName) {`,
+      `      var zBlob = Utilities.newBlob(Utilities.base64Decode(data.zipBase64), 'application/zip', data.zipName);`,
+      `      var zFile = folder.createFile(zBlob);`,
+      `      out.zipUrl = zFile.getUrl();`,
+      `      out.zipId = zFile.getId();`,
+      `    }`,
+      `    if (data.xlsxBase64 && data.xlsxName) {`,
+      `      var xBlob = Utilities.newBlob(Utilities.base64Decode(data.xlsxBase64), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', data.xlsxName);`,
+      `      var xFile = folder.createFile(xBlob);`,
+      `      out.xlsxUrl = xFile.getUrl();`,
+      `    }`,
+      `    return ContentService.createTextOutput(JSON.stringify({ ok: true, result: out })).setMimeType(ContentService.MimeType.JSON);`,
+      `  } catch (err) {`,
+      `    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: err.toString() })).setMimeType(ContentService.MimeType.JSON);`,
+      `  }`,
+      `}`
+    ].join('\n');
+  }
+
+  function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const res = String(reader.result || '');
+        resolve(res.includes(',') ? res.split(',')[1] : res);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function uploadMultipartToDriveAPI(accessToken, fileBlob, fileName, mimeType, onUploadProgress) {
+    return new Promise((resolve, reject) => {
+      const metadata = {
+        name: fileName,
+        parents: [DRIVE_FOLDER_ID]
+      };
+      const boundary = '-------kslDriveUploadBoundary' + Date.now();
+      const metaPart =
+        `--${boundary}\r\n` +
+        `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+        `${JSON.stringify(metadata)}\r\n` +
+        `--${boundary}\r\n` +
+        `Content-Type: ${mimeType}\r\n\r\n`;
+      const closePart = `\r\n--${boundary}--`;
+
+      const bodyBlob = new Blob([metaPart, fileBlob, closePart], {
+        type: `multipart/related; boundary=${boundary}`
+      });
+
+      const xhr = new XMLHttpRequest();
+      xhr.open(
+        'POST',
+        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,webViewLink',
+        true
+      );
+      xhr.setRequestHeader('Authorization', `Bearer ${accessToken}`);
+      xhr.setRequestHeader('Content-Type', `multipart/related; boundary=${boundary}`);
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && typeof onUploadProgress === 'function') {
+          onUploadProgress((e.loaded / e.total) * 100);
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            resolve(JSON.parse(xhr.responseText));
+          } catch (err) {
+            resolve({ id: 'ok', name: fileName });
+          }
+        } else {
+          reject(new Error(`Google Drive API HTTP ${xhr.status}: ${xhr.responseText.slice(0, 180)}`));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Lỗi kết nối mạng khi tải lên Google Drive API'));
+      xhr.send(bodyBlob);
+    });
+  }
+
+  function postPayloadToAppsScript(gasUrl, payloadObj, onUploadProgress) {
+    return new Promise((resolve, reject) => {
+      const jsonStr = JSON.stringify(payloadObj);
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', gasUrl, true);
+      xhr.setRequestHeader('Content-Type', 'text/plain;charset=utf-8');
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && typeof onUploadProgress === 'function') {
+          onUploadProgress((e.loaded / e.total) * 100);
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 400) {
+          try {
+            const parsed = JSON.parse(xhr.responseText);
+            if (parsed && parsed.ok === false) {
+              reject(new Error(parsed.error || 'Apps Script báo lỗi'));
+            } else {
+              resolve(parsed);
+            }
+          } catch (_) {
+            resolve({ ok: true });
+          }
+        } else {
+          reject(new Error(`HTTP ${xhr.status}`));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Không kết nối được tới Apps Script Web App'));
+      xhr.send(jsonStr);
+    });
+  }
+
+  async function pushPackageDirectlyToGoogleDrive() {
+    const records = getAllSavedRecords();
+    if (records.length === 0) {
+      showToast('Chưa có điểm khảo sát nào được lưu! Hãy lưu ít nhất 1 điểm ở Tab 1.', 'warn');
+      return;
+    }
+    if (state.isUploading) return;
+
+    const bridgeInputEl = document.getElementById('gasWebAppUrlInput');
+    if (bridgeInputEl && bridgeInputEl.value.trim()) {
+      state.gasWebAppUrl = bridgeInputEl.value.trim();
+      localStorage.setItem('ksl_gasWebAppUrl', state.gasWebAppUrl);
+    }
+
+    const bridgeVal = (state.gasWebAppUrl || '').trim();
+
+    let photoCount = 0;
+    records.forEach(r => {
+      if (r.photos) {
+        ['TongQuan', 'Can1', 'Can2'].forEach(tk => {
+          if (r.photos[tk] && r.photos[tk].stampedDataUrl) photoCount++;
+        });
+      }
+    });
+
+    // If user has configured either an Apps Script Web App URL (https://script.google.com/...) or an OAuth Token (ya29....)
+    if (bridgeVal.startsWith('https://script.google.com/') || bridgeVal.startsWith('ya29.')) {
+      state.isUploading = true;
+      const steps = [
+        { text: `Bước 1/3: Đóng gói Excel (.xlsx) & nén ${photoCount} ảnh vào gói .ZIP (${records.length} điểm)`, status: 'running' },
+        { text: `Bước 2/3: Đẩy thẳng gói .ZIP & .XLSX lên thư mục Google Drive (KS-LUA-3-TINH)`, status: 'pending' },
+        { text: `Bước 3/3: Xác nhận file đã nằm trong Google Drive 100%`, status: 'pending' }
+      ];
+      renderProgressStepUI(`⏳ ĐANG ĐÓNG GÓI & ĐẨY THẲNG LÊN DRIVE...`, 5, steps);
+
+      try {
+        const prefix = getBaseExportPrefix(records);
+        const xlsxBuf = generateExcelWorkbookBuffer(records);
+        const xlsxBlob = new Blob([xlsxBuf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const xlsxName = `${prefix}.xlsx`;
+
+        const { blob: zipBlob, fileName: zipName } = await buildZipPackageBlob(records, (pct) => {
+          const mapped = 5 + Math.round(pct * 0.35);
+          renderProgressStepUI(`🔄 ĐANG NÉN GÓI .ZIP (${Math.round(pct)}%)...`, mapped, steps);
+        });
+
+        steps[0].status = 'done';
+        steps[1].status = 'running';
+        renderProgressStepUI(`🚀 ĐANG ĐẨY THẲNG LÊN GOOGLE DRIVE (45%)...`, 45, steps);
+
+        let driveLink = DRIVE_FOLDER_URL;
+
+        if (bridgeVal.startsWith('ya29.')) {
+          const upZip = await uploadMultipartToDriveAPI(bridgeVal, zipBlob, zipName, 'application/zip', (upPct) => {
+            const mapped = 45 + Math.round(upPct * 0.45);
+            renderProgressStepUI(`☁️ ĐANG TẢI .ZIP LÊN DRIVE (${Math.round(upPct)}%)...`, mapped, steps);
+          });
+          await uploadMultipartToDriveAPI(bridgeVal, xlsxBlob, xlsxName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+          if (upZip && upZip.webViewLink) driveLink = upZip.webViewLink;
+        } else {
+          const zipBase64 = await blobToBase64(zipBlob);
+          const xlsxBase64 = await blobToBase64(xlsxBlob);
+          const res = await postPayloadToAppsScript(
+            bridgeVal,
+            { zipName, zipBase64, xlsxName, xlsxBase64, surveyor: state.surveyorName, totalPlots: records.length },
+            (upPct) => {
+              const mapped = 45 + Math.round(upPct * 0.5);
+              renderProgressStepUI(`☁️ ĐANG ĐẨY LÊN GOOGLE DRIVE (${Math.round(upPct)}%)...`, mapped, steps);
+            }
+          );
+          if (res && res.result && res.result.zipUrl) driveLink = res.result.zipUrl;
+        }
+
+        steps[1].status = 'done';
+        steps[2].status = 'done';
+        const doneTime = formatShortTime(new Date().toISOString());
+        renderProgressStepUI(`🎉 ĐÃ ĐẨY THẲNG LÊN GOOGLE DRIVE XONG 100% (LÚC ${doneTime})!`, 100, steps);
+        if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
+
+        showModal({
+          title: `🎉 ĐÃ ĐẨY THẲNG LÊN GOOGLE DRIVE (KS-LUA-3-TINH) XONG 100%!`,
+          html: `
+            <div style="background:rgba(34,197,94,0.18);border:2px solid #22c55e;border-radius:12px;padding:12px;margin-bottom:12px;line-height:1.55;">
+              <div style="font-size:1.05rem;font-weight:900;color:#4ade80;margin-bottom:6px;">
+                ✅ ĐÃ LƯU TRỰC TIẾP VÀO THƯ MỤC KS-LUA-3-TINH LÚC ${doneTime}
+              </div>
+              <div>📦 <strong>File gói nén:</strong> <code style="color:#facc15;">${zipName}</code></div>
+              <div>📊 <strong>File bảng biểu:</strong> <code style="color:#86efac;">${xlsxName}</code></div>
+              <div>🌾 <strong>Tổng số điểm:</strong> ${records.length} điểm (${photoCount} ảnh đóng dấu Code)</div>
+            </div>
+          `,
+          buttons: [
+            { label: 'Đóng', className: 'btn btn-outline btn-sm' },
+            {
+              label: '📂 Mở xem file trên Google Drive',
+              className: 'btn btn-yellow btn-sm',
+              onClick: () => window.open(driveLink, '_blank')
+            }
+          ]
+        });
+      } catch (err) {
+        steps.forEach(s => { if (s.status === 'running') s.status = 'error'; });
+        renderProgressStepUI(`⚠️ LỖI ĐẨY LÊN DRIVE: ${err.message}`, 60, steps);
+        showToast('Lỗi đẩy lên Drive: ' + err.message, 'error');
+      } finally {
+        state.isUploading = false;
+      }
+      return;
+    }
+
+    // If on mobile phone supporting Web Share with Files -> Open Native Share Sheet directly so user taps "Drive" icon (Zero drag-and-drop!)
+    state.isUploading = true;
+    const steps = [
+      { text: `Bước 1/3: Tạo bảng Excel (.xlsx), CSV & Bản đồ GIS (${records.length} điểm)`, status: 'running' },
+      { text: `Bước 2/3: Nén ${photoCount} ảnh có Code vào gói .ZIP`, status: 'pending' },
+      { text: `Bước 3/3: Chuyển thẳng sang ứng dụng Google Drive / Tải về hoàn tất 100%`, status: 'pending' }
+    ];
+    renderProgressStepUI(`⏳ ĐANG ĐÓNG GÓI DỮ LIỆU (${records.length} ĐIỂM)...`, 10, steps);
+
+    try {
+      const prefix = getBaseExportPrefix(records);
+      const xlsxBuf = generateExcelWorkbookBuffer(records);
+      const xlsxBlob = new Blob([xlsxBuf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const xlsxName = `${prefix}.xlsx`;
+
+      const { blob: zipBlob, fileName: zipName } = await buildZipPackageBlob(records, (pct) => {
+        steps[0].status = 'done';
+        steps[1].status = 'running';
+        const mappedPct = 15 + Math.round(pct * 0.75);
+        renderProgressStepUI(`🔄 ĐANG NÉN GÓI .ZIP (${Math.round(pct)}%)...`, mappedPct, steps);
+      });
+
+      steps[0].status = 'done';
+      steps[1].status = 'done';
+      steps[2].status = 'done';
+      const doneTime = formatShortTime(new Date().toISOString());
+      renderProgressStepUI(`🎉 ĐÃ ĐÓNG GÓI XONG 100% LÚC ${doneTime}!`, 100, steps);
+
+      const zipFile = new File([zipBlob], zipName, { type: 'application/zip' });
+      const xlsxFile = new File([xlsxBlob], xlsxName, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+      if (navigator.canShare && navigator.canShare({ files: [zipFile, xlsxFile] })) {
+        await navigator.share({
+          title: `Khảo sát lúa Đợt 1 - ${state.surveyorName}`,
+          text: `Dữ liệu khảo sát lúa Đợt 1 (${records.length} điểm) - Chọn biểu tượng Google Drive (thư mục KS-LUA-3-TINH) hoặc Zalo để gửi ngay không cần kéo thả!`,
+          files: [zipFile, xlsxFile]
+        });
+        showToast('✅ Đã mở bảng chọn ứng dụng Google Drive / Zalo!');
+        return;
+      }
+
+      // On Desktop when bridge URL is not configured yet: download both .ZIP and .XLSX and open the 1-click Apps Script setup box
+      triggerDownloadBlob(zipBlob, zipName);
+      triggerDownloadBlob(xlsxBlob, xlsxName);
+      const cfgBox = document.getElementById('driveBridgeConfigBox');
+      if (cfgBox) cfgBox.style.display = 'block';
+
+      showModal({
+        title: `✅ ĐÃ XUẤT XONG 100% (${zipName})!`,
+        html: `
+          <div style="background:rgba(34,197,94,0.16);border:1.5px solid #22c55e;border-radius:10px;padding:12px;margin-bottom:10px;line-height:1.5;">
+            <div>📦 Đã xuất gói <code>${zipName}</code> và bảng Excel <code>${xlsxName}</code> (${records.length} điểm).</div>
+          </div>
+          <div style="background:rgba(2,132,199,0.16);border:1.5px solid #38bdf8;border-radius:10px;padding:12px;font-size:0.86rem;line-height:1.5;">
+            <strong style="color:#fde047;">💡 Mẹo đẩy thẳng 1 chạm vào Google Drive (không cần kéo thả):</strong><br/>
+            1. Trên <strong>điện thoại</strong>: Bấm nút này sẽ bật bảng chọn ứng dụng → chạm biểu tượng <strong>Google Drive</strong> hoặc <strong>Zalo</strong> là gửi thẳng luôn!<br/>
+            2. Muốn <strong>tự động chui thẳng vào thư mục KS-LUA-3-TINH</strong> trên mọi máy: Bấm nút <strong>"📋 Copy Mã Apps Script"</strong> bên dưới → Dán vào <code>script.google.com</code> (chỉ làm 1 lần 30 giây).
+          </div>
+        `,
+        buttons: [
+          { label: 'Đóng', className: 'btn btn-outline btn-sm' },
+          {
+            label: '📋 Copy Mã Apps Script & Mở script.google.com',
+            className: 'btn btn-primary btn-sm',
+            onClick: () => {
+              navigator.clipboard.writeText(getGasCodeTemplate());
+              showToast('📋 Đã copy mã Apps Script! Hãy dán vào script.google.com và chọn Triển khai > Ứng dụng web.');
+              window.open('https://script.google.com/home/start', '_blank');
+            }
+          },
+          {
+            label: '📂 Mở thư mục Drive (KS-LUA-3-TINH)',
+            className: 'btn btn-yellow btn-sm',
+            onClick: () => window.open(DRIVE_FOLDER_URL, '_blank')
+          }
+        ]
+      });
+    } catch (err) {
+      if (err && err.name !== 'AbortError') {
+        showToast('Lỗi xuất gói: ' + err.message, 'error');
+      }
+    } finally {
+      state.isUploading = false;
+    }
   }
 
   // --- EXPORT WITH REAL-TIME 0% -> 100% PACKAGING PROGRESS AFTER THE FIELD TRIP ---
@@ -1792,15 +2208,25 @@
   function buildStandardSheetRows(records) {
     return records.map(r => {
       const das = computeDAS(r.sowingDate, r.surveyDateTime);
+      const stCode = Number(r.growthStage);
+      const stLabel = stCode === 0 ? '0 (Chưa sạ)' : stCode === 13 ? '13 (Đã thu hoạch)' : stCode;
+      const stageNoteVal = r.stageNote || (stCode === 0 ? 'Chưa sạ - Đang làm đất' : stCode === 13 ? 'Đã thu hoạch - Còn gốc rạ' : 'Đang có lúa');
+      const sowSourceVal = r.sowingSource || (r.sowingDate ? 'Ước lượng' : 'Chưa sạ / Chưa rõ');
+      const sowDisplay = r.sowingDate ? `${r.sowingDate} (${sowSourceVal})` : sowSourceVal;
+
       return {
         'STT (GPS)': r.stt,
         'X': Number(r.x),
         'Y': Number(r.y),
         'Ngày và giờ khảo sát (dd/mm/yy hh:mm)': r.surveyDateTime,
-        'Giai đoạn sinh trưởng của lúa (ảnh, hoặc thông tin của người nông dân) - Rice growth stages': Number(r.growthStage),
+        'Giai đoạn sinh trưởng của lúa (ảnh, hoặc thông tin của người nông dân) - Rice growth stages': stLabel,
+        'Hiện trạng / Ghi chú giai đoạn (Chưa sạ / Đã thu hoạch / Chi tiết)': stageNoteVal,
         'Chế độ ngập nước': r.waterRegime,
         'Chiều cao mực nước (cm, trung bình 3 lần đo)': r.waterRegime === '1' && r.waterLevelAvg !== '' ? Number(r.waterLevelAvg) : '',
-        'Ngày sạ/cấy sowing/transplanting date (if any) dd/mm/yy': r.sowingDate || '',
+        'Ngày sạ/cấy sowing/transplanting date (if any) dd/mm/yy': sowDisplay,
+        'Nguồn ngày sạ/cấy (Ước lượng / Gặp ND)': sowSourceVal,
+        'Giống lúa (Có Chưa biết)': r.variety || 'Chưa biết',
+        'Phương pháp sạ/cấy': r.method || 'Chưa biết',
         'Ghi chú - Note (giống lúa và phương pháp sạ/cấy)': r.note || '',
         'Đợt khảo sát': 1,
         'Người khảo sát': r.surveyorName || '',
@@ -2197,6 +2623,51 @@
       }
     });
 
+    document.querySelectorAll('#sowingSourceChips .chip-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        setSowingSource(btn.getAttribute('data-sow-source'), true);
+      });
+    });
+
+    document.querySelectorAll('#quickEstimateSowGroup .chip-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        estimateSowingDateByDAS(btn.getAttribute('data-est-das'));
+      });
+    });
+
+    document.querySelectorAll('#stageStatusChips .chip-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const noteText = btn.getAttribute('data-stage-note') || '';
+        const setSt = btn.getAttribute('data-set-stage');
+        const noteEl = document.getElementById('stageNoteInput');
+        if (noteEl) noteEl.value = noteText;
+        if (setSt !== null && setSt !== '') {
+          document.getElementById('selectedStageInput').value = String(setSt);
+          renderStagesGrid();
+          if (setSt === '0') {
+            document.getElementById('sowingDateInput').value = '';
+            setSowingSource('Chưa sạ / Chưa rõ', false);
+          } else if (setSt === '13') {
+            setSowingSource('Chưa sạ / Chưa rõ', false);
+          }
+        }
+        syncStageStatusChips();
+        updateCombinedNotePreview();
+        markFormDirty();
+        reStampExistingPhotos();
+      });
+    });
+
+    const stageNoteInputEl = document.getElementById('stageNoteInput');
+    if (stageNoteInputEl) {
+      stageNoteInputEl.addEventListener('input', () => {
+        markFormDirty();
+        syncStageStatusChips();
+        updateCombinedNotePreview();
+        reStampExistingPhotos();
+      });
+    }
+
     document.querySelectorAll('#waterRegimeGrid .water-btn').forEach(btn => {
       btn.addEventListener('click', () => setWaterRegime(btn.dataset.water, true));
     });
@@ -2339,7 +2810,44 @@
       });
     });
 
-    // Tab 4: Export After Field Trip (with 0-100% progress bar)
+    // Tab 4: Export After Field Trip (with 0-100% progress bar & Direct Google Drive Push)
+    const gasInput = document.getElementById('gasWebAppUrlInput');
+    if (gasInput && state.gasWebAppUrl) {
+      gasInput.value = state.gasWebAppUrl;
+    }
+
+    const btnDirectDrive = document.getElementById('btnDirectPushToDrive');
+    if (btnDirectDrive) {
+      btnDirectDrive.addEventListener('click', pushPackageDirectlyToGoogleDrive);
+    }
+
+    const btnToggleSetup = document.getElementById('btnToggleDriveBridgeSetup');
+    if (btnToggleSetup) {
+      btnToggleSetup.addEventListener('click', () => {
+        const box = document.getElementById('driveBridgeConfigBox');
+        if (box) box.style.display = box.style.display === 'none' ? 'block' : 'none';
+      });
+    }
+
+    const btnSaveGas = document.getElementById('btnSaveGasUrl');
+    if (btnSaveGas) {
+      btnSaveGas.addEventListener('click', () => {
+        const val = (document.getElementById('gasWebAppUrlInput')?.value || '').trim();
+        state.gasWebAppUrl = val;
+        localStorage.setItem('ksl_gasWebAppUrl', val);
+        showToast(val ? '✅ Đã lưu cấu hình cầu nối đẩy thẳng lên Google Drive!' : 'Đã xóa cầu nối Google Drive');
+      });
+    }
+
+    const btnCopyGas = document.getElementById('btnCopyGasCode');
+    if (btnCopyGas) {
+      btnCopyGas.addEventListener('click', () => {
+        navigator.clipboard.writeText(getGasCodeTemplate()).then(() => {
+          showToast('📋 Đã copy Mã Google Apps Script! Hãy dán vào script.google.com và chọn Triển khai > Ứng dụng web.');
+        });
+      });
+    }
+
     document.getElementById('btnUploadAllToDrive').addEventListener('click', () => {
       exportAllAfterTripWithProgress('download_for_drive');
     });
@@ -2378,7 +2886,7 @@
 
   function registerServiceWorker() {
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-      navigator.serviceWorker.register('./sw.js?v=3.2').then(reg => {
+      navigator.serviceWorker.register('./sw.js?v=3.4').then(reg => {
         if (reg && reg.update) reg.update();
       }).catch(() => {});
     }

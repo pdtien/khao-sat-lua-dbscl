@@ -226,14 +226,14 @@
           <div class="form-group">
             <label for="sowingDateInput" class="form-label">
               Cột 8 — Ngày sạ/cấy (dd/mm/yyyy)
-              <span class="form-sublabel">Nhập ngày xuống giống của ruộng (nếu có)</span>
+              <span class="form-sublabel">Nhập ngày xuống giống hoặc chọn ước lượng bên dưới</span>
             </label>
             <div style="display:flex;gap:6px;align-items:center;">
               <input
                 type="text"
                 id="sowingDateInput"
                 class="form-input"
-                placeholder="VD: 25/10/2026"
+                placeholder="VD: 25/10/2026 (hoặc để trống nếu chưa sạ)"
               />
               <input
                 type="date"
@@ -242,25 +242,81 @@
                 title="Chọn ngày từ lịch"
               />
             </div>
+
+            <!-- Nguồn thông tin Ngày sạ/cấy: Ước lượng hay Gặp ND -->
+            <div style="margin-top:8px;">
+              <div style="font-size:0.78rem;font-weight:800;color:var(--text-secondary);margin-bottom:5px;">
+                Nguồn Ngày sạ/cấy (Bấm chọn: Ước lượng hay Gặp nông dân):
+              </div>
+              <div id="sowingSourceChips" class="chip-group">
+                <button type="button" class="chip-btn selected" data-sow-source="Ước lượng">👁️ Ước lượng (Nhìn lúa)</button>
+                <button type="button" class="chip-btn" data-sow-source="Gặp ND">👨‍🌾 Gặp ND (Hỏi nông dân)</button>
+                <button type="button" class="chip-btn" data-sow-source="Chưa sạ / Chưa rõ">❓ Chưa sạ / Chưa rõ</button>
+              </div>
+              <input type="hidden" id="sowingSourceInput" value="Ước lượng" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Thanh công cụ ước lượng nhanh ngày sạ từ tuổi lúa (NSS) -->
+        <div style="margin-top:6px;padding:9px 11px;background:rgba(250,204,21,0.09);border:1.5px dashed rgba(250,204,21,0.45);border-radius:10px;">
+          <div style="font-size:0.8rem;font-weight:800;color:#fde047;margin-bottom:6px;">
+            ⚡ Ước lượng nhanh Ngày sạ/cấy theo tuổi lúa (Tự động trừ lùi ngày &amp; chọn "Ước lượng"):
+          </div>
+          <div id="quickEstimateSowGroup" class="chip-group">
+            <button type="button" class="chip-btn" data-est-das="stage">🎯 Theo GĐ đang chọn</button>
+            <button type="button" class="chip-btn" data-est-das="5">~5 ngày (Nảy mầm)</button>
+            <button type="button" class="chip-btn" data-est-das="12">~12 ngày (Mạ)</button>
+            <button type="button" class="chip-btn" data-est-das="22">~22 ngày (Đẻ nhánh)</button>
+            <button type="button" class="chip-btn" data-est-das="35">~35 ngày (Nhảy chồi)</button>
+            <button type="button" class="chip-btn" data-est-das="45">~45 ngày (Phân đòng)</button>
+            <button type="button" class="chip-btn" data-est-das="55">~55 ngày (Làm đòng)</button>
+            <button type="button" class="chip-btn" data-est-das="65">~65 ngày (Trổ)</button>
+            <button type="button" class="chip-btn" data-est-das="80">~80 ngày (Ngậm sữa)</button>
+            <button type="button" class="chip-btn" data-est-das="95">~95 ngày (Chín)</button>
+            <button type="button" class="chip-btn" data-est-das="clear">🧹 Trống (Chưa sạ / Đã gặt)</button>
           </div>
         </div>
 
         <div id="dasHintBanner" style="margin-top:8px;padding:9px 12px;border-radius:10px;background:rgba(56,189,248,0.12);border:1.5px solid #38bdf8;font-size:0.86rem;font-weight:700;color:#e0f2fe;">
-          🌱 Nhập Ngày sạ/cấy để tự động tính số ngày sau sạ (NSS / DAS) và gợi ý giai đoạn sinh trưởng.
+          🌱 Nhập Ngày sạ/cấy hoặc bấm nút Ước lượng nhanh ở trên để tự động tính số ngày sau sạ (NSS / DAS).
         </div>
       </div>
 
-      <!-- CỘT 5: GIAI ĐOẠN SINH TRƯỞNG CỦA LÚA (12 GIAI ĐOẠN SONG NGỮ) -->
+      <!-- CỘT 5: GIAI ĐOẠN SINH TRƯỞNG CỦA LÚA (12 GIAI ĐOẠN + CHƯA SẠ / ĐÃ THU HOẠCH + CỘT GHI CHÚ) -->
       <div class="card">
         <div class="card-header">
-          <div class="card-title">🌾 Giai Đoạn Sinh Trưởng Của Lúa (1–12)</div>
-          <span class="col-badge">Cột 5 (Xuất mã 1–12)</span>
+          <div class="card-title">🌾 Giai Đoạn Sinh Trưởng &amp; Hiện Trạng Ruộng</div>
+          <span class="col-badge">Cột 5 + Cột Hiện trạng</span>
         </div>
 
         <div id="stagesGrid" class="stages-grid">
-          <!-- 12 bilingual stage buttons rendered by JS -->
+          <!-- Stage buttons (0: Chưa sạ, 1-12: Giai đoạn lúa, 13: Đã thu hoạch) rendered by JS -->
         </div>
         <input type="hidden" id="selectedStageInput" value="3" />
+
+        <!-- Cột bổ sung ghi chú giai đoạn vì chưa sạ hoặc đã thu hoạch -->
+        <div style="margin-top:12px;padding-top:12px;border-top:1.5px dashed var(--border-color);">
+          <label for="stageNoteInput" class="form-label">
+            Cột bổ sung Giai đoạn — Ghi chú Hiện trạng ruộng (Chưa sạ / Đã thu hoạch / Chi tiết)
+            <span class="form-sublabel">Xuất thành cột riêng trong Excel để ghi rõ khi ruộng chưa sạ, đang làm đất hoặc đã thu hoạch</span>
+          </label>
+          <div id="stageStatusChips" class="chip-group" style="margin-bottom:8px;">
+            <button type="button" class="chip-btn selected" data-stage-note="Đang có lúa">🌾 Đang có lúa (GĐ 1–12)</button>
+            <button type="button" class="chip-btn" data-stage-note="Chưa sạ - Đang làm đất" data-set-stage="0">🚜 Chưa sạ - Đang làm đất</button>
+            <button type="button" class="chip-btn" data-stage-note="Chưa sạ - Ngập nước chờ sạ" data-set-stage="0">💧 Chưa sạ - Ngập nước chờ sạ</button>
+            <button type="button" class="chip-btn" data-stage-note="Đã thu hoạch - Còn gốc rạ" data-set-stage="13">🌾 Đã thu hoạch - Còn gốc rạ</button>
+            <button type="button" class="chip-btn" data-stage-note="Đã thu hoạch - Đã cày vùi" data-set-stage="13">🔥 Đã thu hoạch - Đã cày đất</button>
+            <button type="button" class="chip-btn" data-stage-note="Lúa chét / Tái sinh">🌱 Lúa chét / Tái sinh</button>
+          </div>
+          <input
+            type="text"
+            id="stageNoteInput"
+            class="form-input"
+            value="Đang có lúa"
+            placeholder="Nhập hiện trạng giai đoạn (VD: Chưa sạ đang trục đất, Đã thu hoạch 3 ngày, Lúa đẻ nhánh đều...)"
+          />
+        </div>
       </div>
 
       <!-- CỘT 6 & CỘT 7: CHẾ ĐỘ NGẬP NƯỚC & CHIỀU CAO MỰC NƯỚC (TRUNG BÌNH 3 LẦN ĐO) -->
@@ -338,26 +394,32 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">1. Chọn nhanh Giống lúa phổ biến ĐBSCL</label>
+          <label class="form-label">
+            1. Chọn nhanh Giống lúa phổ biến ĐBSCL
+            <span class="form-sublabel">Bấm chọn "❓ Chưa biết" nếu không gặp nông dân hoặc chưa rõ giống</span>
+          </label>
           <div id="varietyChips" class="chip-group"></div>
           <input
             type="text"
             id="varietyInput"
             class="form-input"
             style="margin-top:8px;"
-            placeholder="Hoặc tự nhập tên giống lúa (VD: OM5454)..."
+            placeholder="Chọn ở trên (có 'Chưa biết') hoặc tự nhập giống lúa..."
           />
         </div>
 
         <div class="form-group">
-          <label class="form-label">2. Phương pháp xuống giống (Sạ / Cấy)</label>
+          <label class="form-label">
+            2. Phương pháp xuống giống (Sạ / Cấy)
+            <span class="form-sublabel">Có mục "Chưa biết" hoặc "Chưa sạ"</span>
+          </label>
           <div id="methodChips" class="chip-group"></div>
           <input
             type="text"
             id="methodInput"
             class="form-input"
             style="margin-top:8px;"
-            placeholder="Phương pháp (VD: Sạ hàng, Sạ lan, Cấy...)"
+            placeholder="Phương pháp (VD: Sạ hàng, Sạ lan, Cấy, Chưa biết...)"
           />
         </div>
 
@@ -624,24 +686,63 @@
           <div id="tabExportUploadStepList" style="font-size:0.85rem;line-height:1.6;color:#f8fafc;"></div>
         </div>
 
-        <!-- Phương thức 1: Xuất file .ZIP & Mở thư mục Google Drive KS-LUA-3-TINH để tải lên -->
-        <div style="background:rgba(2,132,199,0.14);border:2px solid #38bdf8;border-radius:12px;padding:12px;margin-bottom:12px;">
-          <div style="font-weight:900;color:#7dd3fc;margin-bottom:8px;font-size:0.95rem;">
-            ☁️ Cách 1: Xuất Gói .ZIP &amp; Đưa Lên Thư Mục Google Drive (KS-LUA-3-TINH)
+        <!-- Phương thức 1: ĐẨY THẲNG GÓI .ZIP & EXCEL VÀO THƯ MỤC GOOGLE DRIVE KS-LUA-3-TINH (KHÔNG CẦN KÉO THẢ) -->
+        <div style="background:rgba(2,132,199,0.16);border:2px solid #38bdf8;border-radius:12px;padding:12px;margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+            <div style="font-weight:900;color:#7dd3fc;font-size:0.95rem;">
+              ☁️ Cách 1: Đẩy Thẳng Vào Thư Mục Google Drive (KS-LUA-3-TINH) — Không Cần Kéo Thả
+            </div>
+            <button type="button" id="btnToggleDriveBridgeSetup" class="btn btn-outline btn-sm" style="padding:4px 10px;font-size:0.78rem;border-color:#38bdf8;color:#bae6fd;">
+              ⚙️ Cấu hình cầu nối Drive
+            </button>
           </div>
+
+          <button type="button" id="btnDirectPushToDrive" class="btn btn-yellow btn-lg btn-block" style="font-size:1rem;margin-bottom:8px;">
+            🚀 ĐẨY THẲNG GÓI .ZIP &amp; EXCEL LÊN GOOGLE DRIVE (0% → 100%)
+          </button>
+
           <div class="form-grid-2 form-grid-2-mobile-stack" style="gap:8px;">
-            <button type="button" id="btnUploadAllToDrive" class="btn btn-yellow" style="font-size:0.96rem;">
-              📦 BƯỚC 1: TẠO &amp; TẢI GÓI .ZIP (CÓ BÁO % XONG)
+            <button type="button" id="btnUploadAllToDrive" class="btn btn-primary btn-sm">
+              📥 Tải Gói .ZIP Về Máy (Dự phòng)
             </button>
             <a
               href="https://drive.google.com/drive/folders/1N74C2GaXeEFN5C8oAbNU3amc0Y6fPASL?usp=sharing"
               target="_blank"
               rel="noopener"
-              class="btn btn-zalo"
-              style="font-size:0.96rem;background:#0284c7;"
+              class="btn btn-outline btn-sm"
+              style="border-color:#38bdf8;color:#7dd3fc;text-decoration:none;text-align:center;"
             >
-              📂 BƯỚC 2: MỞ THƯ MỤC DRIVE (KS-LUA-3-TINH) ĐỂ BỎ FILE VÀO
+              📂 Mở xem thư mục Drive (KS-LUA-3-TINH)
             </a>
+          </div>
+
+          <!-- Hộp cấu hình Cầu nối Google Apps Script / Token để đẩy thẳng không cần kéo thả -->
+          <div id="driveBridgeConfigBox" style="display:none;margin-top:10px;padding:10px;background:rgba(6,20,12,0.85);border:1.5px dashed #38bdf8;border-radius:10px;">
+            <div style="font-weight:800;font-size:0.84rem;color:#fde047;margin-bottom:6px;">
+              🔗 Cầu nối Đẩy Thẳng File Vào Thư Mục <code>1N74C2GaXeEFN5C8oAbNU3amc0Y6fPASL</code> (KS-LUA-3-TINH):
+            </div>
+            <p style="font-size:0.79rem;color:#cbd5e1;margin-bottom:8px;line-height:1.45;">
+              Để điện thoại của mọi người bấm 1 nút là file <code>.ZIP</code> và <code>.XLSX</code> tự chui thẳng vào thư mục <strong>KS-LUA-3-TINH</strong> mà không cần đăng nhập hay kéo thả:
+              Bấm <strong>"📋 Copy Mã Apps Script"</strong> bên dưới → Dán vào <a href="https://script.google.com/home/start" target="_blank" rel="noopener" style="color:#38bdf8;font-weight:800;">script.google.com</a> → Chọn <strong>Triển khai (Deploy) &gt; Ứng dụng web (Anyone)</strong> → Dán link <code>https://script.google.com/macros/s/.../exec</code> vào ô dưới đây:
+            </p>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
+              <input
+                type="text"
+                id="gasWebAppUrlInput"
+                class="form-input"
+                style="flex:1;min-width:210px;font-size:0.82rem;"
+                placeholder="Dán link https://script.google.com/macros/s/.../exec hoặc OAuth Token..."
+              />
+              <button type="button" id="btnSaveGasUrl" class="btn btn-yellow btn-sm">💾 Lưu kết nối</button>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button type="button" id="btnCopyGasCode" class="btn btn-outline btn-sm" style="font-size:0.78rem;">
+                📋 Copy Mã Apps Script (Tự bỏ thẳng vào KS-LUA-3-TINH)
+              </button>
+              <a href="https://script.google.com/home/start" target="_blank" rel="noopener" class="btn btn-outline btn-sm" style="font-size:0.78rem;text-decoration:none;">
+                ⚡ Mở script.google.com tạo nhanh (30 giây)
+              </a>
+            </div>
           </div>
         </div>
 
