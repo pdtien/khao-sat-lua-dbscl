@@ -49,12 +49,20 @@
   };
 
   // --- APPLICATION STATE ---
+  function getValidGasUrl(candidate) {
+    const s = (candidate || '').trim();
+    if (s.startsWith('https://script.google.com/macros/s/') && s.endsWith('/exec')) {
+      return s;
+    }
+    return DEFAULT_GAS_URL;
+  }
+
   const state = {
     db: null,
     surveyorName: localStorage.getItem('ksl_surveyorName') || 'Nguyễn Văn Minh',
     saveRawPhotos: localStorage.getItem('ksl_saveRawPhotos') === 'true',
     themeLight: localStorage.getItem('ksl_themeLight') === 'true',
-    gasWebAppUrl: localStorage.getItem('ksl_gasWebAppUrl') || DEFAULT_GAS_URL,
+    gasWebAppUrl: getValidGasUrl(localStorage.getItem('ksl_gasWebAppUrl')),
     masterPlots: new Map(),
     surveyRecords: new Map(),
     currentPlotStt: 'CT01',
@@ -1635,11 +1643,14 @@
 
     const bridgeInputEl = document.getElementById('gasWebAppUrlInput');
     if (bridgeInputEl && bridgeInputEl.value.trim()) {
-      state.gasWebAppUrl = bridgeInputEl.value.trim();
-      localStorage.setItem('ksl_gasWebAppUrl', state.gasWebAppUrl);
+      state.gasWebAppUrl = getValidGasUrl(bridgeInputEl.value.trim());
+    } else {
+      state.gasWebAppUrl = getValidGasUrl(state.gasWebAppUrl);
     }
+    localStorage.setItem('ksl_gasWebAppUrl', state.gasWebAppUrl);
+    if (bridgeInputEl) bridgeInputEl.value = state.gasWebAppUrl;
 
-    const bridgeVal = (state.gasWebAppUrl || '').trim();
+    const targetGasUrl = state.gasWebAppUrl || DEFAULT_GAS_URL;
 
     let photoCount = 0;
     records.forEach(r => {
@@ -1650,99 +1661,13 @@
       }
     });
 
-    // If user has configured either an Apps Script Web App URL (https://script.google.com/...) or an OAuth Token (ya29....)
-    if (bridgeVal.startsWith('https://script.google.com/') || bridgeVal.startsWith('ya29.')) {
-      state.isUploading = true;
-      const steps = [
-        { text: `Bước 1/3: Đóng gói Excel (.xlsx) & nén ${photoCount} ảnh vào gói .ZIP (${records.length} điểm)`, status: 'running' },
-        { text: `Bước 2/3: Đẩy thẳng gói .ZIP & .XLSX lên thư mục Google Drive (KS-LUA-3-TINH)`, status: 'pending' },
-        { text: `Bước 3/3: Xác nhận file đã nằm trong Google Drive 100%`, status: 'pending' }
-      ];
-      renderProgressStepUI(`⏳ ĐANG ĐÓNG GÓI & ĐẨY THẲNG LÊN DRIVE...`, 5, steps);
-
-      try {
-        const prefix = getBaseExportPrefix(records);
-        const xlsxBuf = generateExcelWorkbookBuffer(records);
-        const xlsxBlob = new Blob([xlsxBuf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const xlsxName = `${prefix}.xlsx`;
-
-        const { blob: zipBlob, fileName: zipName } = await buildZipPackageBlob(records, (pct) => {
-          const mapped = 5 + Math.round(pct * 0.35);
-          renderProgressStepUI(`🔄 ĐANG NÉN GÓI .ZIP (${Math.round(pct)}%)...`, mapped, steps);
-        });
-
-        steps[0].status = 'done';
-        steps[1].status = 'running';
-        renderProgressStepUI(`🚀 ĐANG ĐẨY THẲNG LÊN GOOGLE DRIVE (45%)...`, 45, steps);
-
-        let driveLink = DRIVE_FOLDER_URL;
-
-        if (bridgeVal.startsWith('ya29.')) {
-          const upZip = await uploadMultipartToDriveAPI(bridgeVal, zipBlob, zipName, 'application/zip', (upPct) => {
-            const mapped = 45 + Math.round(upPct * 0.45);
-            renderProgressStepUI(`☁️ ĐANG TẢI .ZIP LÊN DRIVE (${Math.round(upPct)}%)...`, mapped, steps);
-          });
-          await uploadMultipartToDriveAPI(bridgeVal, xlsxBlob, xlsxName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-          if (upZip && upZip.webViewLink) driveLink = upZip.webViewLink;
-        } else {
-          const zipBase64 = await blobToBase64(zipBlob);
-          const xlsxBase64 = await blobToBase64(xlsxBlob);
-          const res = await postPayloadToAppsScript(
-            bridgeVal,
-            { zipName, zipBase64, xlsxName, xlsxBase64, surveyor: state.surveyorName, totalPlots: records.length },
-            (upPct) => {
-              const mapped = 45 + Math.round(upPct * 0.5);
-              renderProgressStepUI(`☁️ ĐANG ĐẨY LÊN GOOGLE DRIVE (${Math.round(upPct)}%)...`, mapped, steps);
-            }
-          );
-          if (res && res.result && res.result.zipUrl) driveLink = res.result.zipUrl;
-        }
-
-        steps[1].status = 'done';
-        steps[2].status = 'done';
-        const doneTime = formatShortTime(new Date().toISOString());
-        renderProgressStepUI(`🎉 ĐÃ ĐẨY THẲNG LÊN GOOGLE DRIVE XONG 100% (LÚC ${doneTime})!`, 100, steps);
-        if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
-
-        showModal({
-          title: `🎉 ĐÃ ĐẨY THẲNG LÊN GOOGLE DRIVE (KS-LUA-3-TINH) XONG 100%!`,
-          html: `
-            <div style="background:rgba(34,197,94,0.18);border:2px solid #22c55e;border-radius:12px;padding:12px;margin-bottom:12px;line-height:1.55;">
-              <div style="font-size:1.05rem;font-weight:900;color:#4ade80;margin-bottom:6px;">
-                ✅ ĐÃ LƯU TRỰC TIẾP VÀO THƯ MỤC KS-LUA-3-TINH LÚC ${doneTime}
-              </div>
-              <div>📦 <strong>File gói nén:</strong> <code style="color:#facc15;">${zipName}</code></div>
-              <div>📊 <strong>File bảng biểu:</strong> <code style="color:#86efac;">${xlsxName}</code></div>
-              <div>🌾 <strong>Tổng số điểm:</strong> ${records.length} điểm (${photoCount} ảnh đóng dấu Code)</div>
-            </div>
-          `,
-          buttons: [
-            { label: 'Đóng', className: 'btn btn-outline btn-sm' },
-            {
-              label: '📂 Mở xem file trên Google Drive',
-              className: 'btn btn-yellow btn-sm',
-              onClick: () => window.open(driveLink, '_blank')
-            }
-          ]
-        });
-      } catch (err) {
-        steps.forEach(s => { if (s.status === 'running') s.status = 'error'; });
-        renderProgressStepUI(`⚠️ LỖI ĐẨY LÊN DRIVE: ${err.message}`, 60, steps);
-        showToast('Lỗi đẩy lên Drive: ' + err.message, 'error');
-      } finally {
-        state.isUploading = false;
-      }
-      return;
-    }
-
-    // If on mobile phone supporting Web Share with Files -> Open Native Share Sheet directly so user taps "Drive" icon (Zero drag-and-drop!)
     state.isUploading = true;
     const steps = [
-      { text: `Bước 1/3: Tạo bảng Excel (.xlsx), CSV & Bản đồ GIS (${records.length} điểm)`, status: 'running' },
-      { text: `Bước 2/3: Nén ${photoCount} ảnh có Code vào gói .ZIP`, status: 'pending' },
-      { text: `Bước 3/3: Chuyển thẳng sang ứng dụng Google Drive / Tải về hoàn tất 100%`, status: 'pending' }
+      { text: `Bước 1/3: Đóng gói Excel (.xlsx) & nén ${photoCount} ảnh vào gói .ZIP (${records.length} điểm)`, status: 'running' },
+      { text: `Bước 2/3: Đẩy thẳng gói .ZIP & .XLSX lên thư mục Google Drive (KS-LUA-3-TINH)`, status: 'pending' },
+      { text: `Bước 3/3: Xác nhận file đã nằm trong Google Drive 100%`, status: 'pending' }
     ];
-    renderProgressStepUI(`⏳ ĐANG ĐÓNG GÓI DỮ LIỆU (${records.length} ĐIỂM)...`, 10, steps);
+    renderProgressStepUI(`⏳ ĐANG ĐÓNG GÓI & ĐẨY THẲNG LÊN DRIVE...`, 5, steps);
 
     try {
       const prefix = getBaseExportPrefix(records);
@@ -1751,71 +1676,59 @@
       const xlsxName = `${prefix}.xlsx`;
 
       const { blob: zipBlob, fileName: zipName } = await buildZipPackageBlob(records, (pct) => {
-        steps[0].status = 'done';
-        steps[1].status = 'running';
-        const mappedPct = 15 + Math.round(pct * 0.75);
-        renderProgressStepUI(`🔄 ĐANG NÉN GÓI .ZIP (${Math.round(pct)}%)...`, mappedPct, steps);
+        const mapped = 5 + Math.round(pct * 0.35);
+        renderProgressStepUI(`🔄 ĐANG NÉN GÓI .ZIP (${Math.round(pct)}%)...`, mapped, steps);
       });
 
       steps[0].status = 'done';
+      steps[1].status = 'running';
+      renderProgressStepUI(`🚀 ĐANG ĐẨY THẲNG LÊN GOOGLE DRIVE (45%)...`, 45, steps);
+
+      let driveLink = DRIVE_FOLDER_URL;
+
+      const zipBase64 = await blobToBase64(zipBlob);
+      const xlsxBase64 = await blobToBase64(xlsxBlob);
+      const res = await postPayloadToAppsScript(
+        targetGasUrl,
+        { zipName, zipBase64, xlsxName, xlsxBase64, surveyor: state.surveyorName, totalPlots: records.length },
+        (upPct) => {
+          const mapped = 45 + Math.round(upPct * 0.5);
+          renderProgressStepUI(`☁️ ĐANG ĐẨY LÊN GOOGLE DRIVE (${Math.round(upPct)}%)...`, mapped, steps);
+        }
+      );
+      if (res && res.result && res.result.zipUrl) driveLink = res.result.zipUrl;
+
       steps[1].status = 'done';
       steps[2].status = 'done';
       const doneTime = formatShortTime(new Date().toISOString());
-      renderProgressStepUI(`🎉 ĐÃ ĐÓNG GÓI XONG 100% LÚC ${doneTime}!`, 100, steps);
-
-      const zipFile = new File([zipBlob], zipName, { type: 'application/zip' });
-      const xlsxFile = new File([xlsxBlob], xlsxName, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-
-      if (navigator.canShare && navigator.canShare({ files: [zipFile, xlsxFile] })) {
-        await navigator.share({
-          title: `Khảo sát lúa Đợt 1 - ${state.surveyorName}`,
-          text: `Dữ liệu khảo sát lúa Đợt 1 (${records.length} điểm) - Chọn biểu tượng Google Drive (thư mục KS-LUA-3-TINH) hoặc Zalo để gửi ngay không cần kéo thả!`,
-          files: [zipFile, xlsxFile]
-        });
-        showToast('✅ Đã mở bảng chọn ứng dụng Google Drive / Zalo!');
-        return;
-      }
-
-      // On Desktop when bridge URL is not configured yet: download both .ZIP and .XLSX and open the 1-click Apps Script setup box
-      triggerDownloadBlob(zipBlob, zipName);
-      triggerDownloadBlob(xlsxBlob, xlsxName);
-      const cfgBox = document.getElementById('driveBridgeConfigBox');
-      if (cfgBox) cfgBox.style.display = 'block';
+      renderProgressStepUI(`🎉 ĐÃ ĐẨY THẲNG LÊN GOOGLE DRIVE XONG 100% (LÚC ${doneTime})!`, 100, steps);
+      if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
 
       showModal({
-        title: `✅ ĐÃ XUẤT XONG 100% (${zipName})!`,
+        title: `🎉 ĐÃ ĐẨY THẲNG LÊN GOOGLE DRIVE (KS-LUA-3-TINH) XONG 100%!`,
         html: `
-          <div style="background:rgba(34,197,94,0.16);border:1.5px solid #22c55e;border-radius:10px;padding:12px;margin-bottom:10px;line-height:1.5;">
-            <div>📦 Đã xuất gói <code>${zipName}</code> và bảng Excel <code>${xlsxName}</code> (${records.length} điểm).</div>
-          </div>
-          <div style="background:rgba(2,132,199,0.16);border:1.5px solid #38bdf8;border-radius:10px;padding:12px;font-size:0.86rem;line-height:1.5;">
-            <strong style="color:#fde047;">💡 Mẹo đẩy thẳng 1 chạm vào Google Drive (không cần kéo thả):</strong><br/>
-            1. Trên <strong>điện thoại</strong>: Bấm nút này sẽ bật bảng chọn ứng dụng → chạm biểu tượng <strong>Google Drive</strong> hoặc <strong>Zalo</strong> là gửi thẳng luôn!<br/>
-            2. Muốn <strong>tự động chui thẳng vào thư mục KS-LUA-3-TINH</strong> trên mọi máy: Bấm nút <strong>"📋 Copy Mã Apps Script"</strong> bên dưới → Dán vào <code>script.google.com</code> (chỉ làm 1 lần 30 giây).
+          <div style="background:rgba(34,197,94,0.18);border:2px solid #22c55e;border-radius:12px;padding:12px;margin-bottom:12px;line-height:1.55;">
+            <div style="font-size:1.05rem;font-weight:900;color:#4ade80;margin-bottom:6px;">
+              ✅ ĐÃ LƯU TRỰC TIẾP VÀO THƯ MỤC KS-LUA-3-TINH LÚC ${doneTime}
+            </div>
+            <div>📦 <strong>File gói nén:</strong> <code style="color:#facc15;">${zipName}</code></div>
+            <div>📊 <strong>File bảng biểu:</strong> <code style="color:#86efac;">${xlsxName}</code></div>
+            <div>🌾 <strong>Tổng số điểm:</strong> ${records.length} điểm (${photoCount} ảnh đóng dấu Code)</div>
           </div>
         `,
         buttons: [
           { label: 'Đóng', className: 'btn btn-outline btn-sm' },
           {
-            label: '📋 Copy Mã Apps Script & Mở script.google.com',
-            className: 'btn btn-primary btn-sm',
-            onClick: () => {
-              navigator.clipboard.writeText(getGasCodeTemplate());
-              showToast('📋 Đã copy mã Apps Script! Hãy dán vào script.google.com và chọn Triển khai > Ứng dụng web.');
-              window.open('https://script.google.com/home/start', '_blank');
-            }
-          },
-          {
-            label: '📂 Mở thư mục Drive (KS-LUA-3-TINH)',
+            label: '📂 Mở xem file trên Google Drive',
             className: 'btn btn-yellow btn-sm',
-            onClick: () => window.open(DRIVE_FOLDER_URL, '_blank')
+            onClick: () => window.open(driveLink, '_blank')
           }
         ]
       });
     } catch (err) {
-      if (err && err.name !== 'AbortError') {
-        showToast('Lỗi xuất gói: ' + err.message, 'error');
-      }
+      steps.forEach(s => { if (s.status === 'running') s.status = 'error'; });
+      renderProgressStepUI(`⚠️ LỖI ĐẨY LÊN DRIVE: ${err.message}`, 60, steps);
+      showToast('Lỗi đẩy lên Drive: ' + err.message, 'error');
     } finally {
       state.isUploading = false;
     }
@@ -2821,8 +2734,10 @@
     });
 
     // Tab 4: Export After Field Trip (with 0-100% progress bar & Direct Google Drive Push)
+    state.gasWebAppUrl = getValidGasUrl(state.gasWebAppUrl);
+    localStorage.setItem('ksl_gasWebAppUrl', state.gasWebAppUrl);
     const gasInput = document.getElementById('gasWebAppUrlInput');
-    if (gasInput && state.gasWebAppUrl) {
+    if (gasInput) {
       gasInput.value = state.gasWebAppUrl;
     }
 
@@ -2842,10 +2757,12 @@
     const btnSaveGas = document.getElementById('btnSaveGasUrl');
     if (btnSaveGas) {
       btnSaveGas.addEventListener('click', () => {
-        const val = (document.getElementById('gasWebAppUrlInput')?.value || '').trim();
+        const val = getValidGasUrl(document.getElementById('gasWebAppUrlInput')?.value || '');
         state.gasWebAppUrl = val;
         localStorage.setItem('ksl_gasWebAppUrl', val);
-        showToast(val ? '✅ Đã lưu cấu hình cầu nối đẩy thẳng lên Google Drive!' : 'Đã xóa cầu nối Google Drive');
+        const inp = document.getElementById('gasWebAppUrlInput');
+        if (inp) inp.value = val;
+        showToast('✅ Đã lưu cấu hình cầu nối đẩy thẳng lên Google Drive!');
       });
     }
 
@@ -2896,7 +2813,7 @@
 
   function registerServiceWorker() {
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-      navigator.serviceWorker.register('./sw.js?v=3.4').then(reg => {
+      navigator.serviceWorker.register('./sw.js?v=3.6').then(reg => {
         if (reg && reg.update) reg.update();
       }).catch(() => {});
     }

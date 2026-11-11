@@ -11,7 +11,27 @@
   <link rel="icon" type="image/png" href="./icons/icon-192.png" />
   <link rel="apple-touch-icon" href="./icons/icon-192.png" />
   <link rel="stylesheet" href="./vendor/leaflet.css" />
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./styles.css?v=3.6" />
+  <script>
+    (function () {
+      try {
+        var defUrl = 'https://script.google.com/macros/s/AKfycbxm1wvub6wh1WH3Mg3-dqgBsOHWOsrdcNu8fNjvha2-2vfcTZqClMVUy6e-U730KV666w/exec';
+        var cur = localStorage.getItem('ksl_gasWebAppUrl') || '';
+        if (!cur.startsWith('https://script.google.com/macros/s/') || !cur.endsWith('/exec')) {
+          localStorage.setItem('ksl_gasWebAppUrl', defUrl);
+        }
+        if ('caches' in window) {
+          caches.keys().then(function (keys) {
+            keys.forEach(function (k) {
+              if (k.indexOf('khao-sat-lua-pwa-v') === 0 && k !== 'khao-sat-lua-pwa-v3.6') {
+                caches.delete(k);
+              }
+            });
+          });
+        }
+      } catch (e) {}
+    })();
+  </script>
 </head>
 <body>
   <!-- Toast Container -->
@@ -866,7 +886,7 @@
   <script src="./vendor/jszip.min.js"></script>
   <script src="./vendor/xlsx.full.min.js"></script>
   <script src="./vendor/qrcode.min.js"></script>
-  <script src="./data/presets_dbscl.js"></script>
-  <script src="./app.js"></script>
+  <script src="./data/presets_dbscl.js?v=3.6"></script>
+  <script src="./app.js?v=3.6"></script>
 </body>
 </html>
