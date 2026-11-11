@@ -1,15 +1,17 @@
 /* ==========================================================================
-   ỨNG DỤNG KHẢO SÁT LÚA THỰC ĐỊA ĐBSCL - 9 ĐỢT × 50 ĐIỂM RUỘNG CỐ ĐỊNH
-   Full Offline PWA + Satellite GIS + 3 Stamped Code Photos + Zalo ZIP Export
+   ỨNG DỤNG KHẢO SÁT LÚA THỰC ĐỊA ĐBSCL — ĐỢT 1 (ĐỊNH VỊ GPS & SỐ LIỆU CHUẨN)
+   Tập trung 100% Đợt 1 • Luôn cho phép chỉnh sửa • Báo trạng thái Lưu rõ ràng
+   & Nút chuyển qua điểm mới trực quan
    ========================================================================== */
 
 (function () {
   'use strict';
 
   // --- CONSTANTS & CATALOGS ---
-  const DB_NAME = 'KhaoSatLuaDB_v2';
+  const DB_NAME = 'KhaoSatLua_Dot1_DB_v3';
   const DB_VERSION = 1;
   const TOTAL_TARGET_PLOTS = 50;
+  const CURRENT_ROUND = 1; // Chỉ làm Đợt 1 theo yêu cầu
 
   const RICE_STAGES = [
     { code: 1, vi: 'Nảy mầm', en: 'Seedling', dasRange: '0–7 ngày' },
@@ -44,16 +46,15 @@
   // --- APPLICATION STATE ---
   const state = {
     db: null,
-    currentRound: parseInt(localStorage.getItem('ksl_currentRound') || '1', 10),
     surveyorName: localStorage.getItem('ksl_surveyorName') || 'Nguyễn Văn Minh',
     saveRawPhotos: localStorage.getItem('ksl_saveRawPhotos') === 'true',
     themeLight: localStorage.getItem('ksl_themeLight') === 'true',
-    coordUnlockedInRepeatRound: false,
-    masterPlots: new Map(),      // stt -> plot object
-    surveyRecords: new Map(),    // R<round>_<stt> -> record object
+    masterPlots: new Map(),      // stt -> plot object (if imported or saved)
+    surveyRecords: new Map(),    // R1_<stt> -> saved record object
     currentPlotStt: 'CT01',
+    isCurrentFormDirty: false,   // tracks whether user modified fields since last save
     currentPhotos: {
-      TongQuan: null, // { rawDataUrl, stampedDataUrl, fileName, sizeKB }
+      TongQuan: null,
       Can1: null,
       Can2: null
     },
@@ -68,10 +69,8 @@
     fullMap: null,
     miniMarkersLayer: null,
     fullMarkersLayer: null,
-    activeMiniPin: null,
     userMiniCircle: null,
     userFullCircle: null,
-    mapFilter: 'all',
     lightboxActiveType: null
   };
 
@@ -113,6 +112,22 @@
     return raw;
   }
 
+  function getNextSttCode(currentStt) {
+    const norm = normalizeStt(currentStt);
+    const match = norm.match(/^([A-Z_-]+)(\d+)$/);
+    if (match) {
+      const prefix = match[1];
+      const nextNum = parseInt(match[2], 10) + 1;
+      // Find first unsaved from nextNum onwards, or just increment
+      for (let n = nextNum; n <= Math.max(TOTAL_TARGET_PLOTS, nextNum + 1); n++) {
+        const candidate = `${prefix}${String(n).padStart(2, '0')}`;
+        if (!getRecord(candidate)) return candidate;
+      }
+      return `${prefix}${String(nextNum).padStart(2, '0')}`;
+    }
+    return 'CT02';
+  }
+
   function formatNowDateTime() {
     const d = new Date();
     const dd = String(d.getDate()).padStart(2, '0');
@@ -121,6 +136,15 @@
     const hh = String(d.getHours()).padStart(2, '0');
     const min = String(d.getMinutes()).padStart(2, '0');
     return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+  }
+
+  function formatShortTime(isoStr) {
+    const d = isoStr ? new Date(isoStr) : new Date();
+    if (isNaN(d.getTime())) return '';
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    const sec = String(d.getSeconds()).padStart(2, '0');
+    return `${hh}:${min}:${sec}`;
   }
 
   function formatFileTimestamp() {
@@ -177,31 +201,7 @@
     return 12;
   }
 
-  // Haversine distance in meters between two WGS84 points (lon1, lat1) and (lon2, lat2)
-  function calcDistanceMeters(lon1, lat1, lon2, lat2) {
-    const x1 = parseFloat(lon1);
-    const y1 = parseFloat(lat1);
-    const x2 = parseFloat(lon2);
-    const y2 = parseFloat(lat2);
-    if ([x1, y1, x2, y2].some(v => isNaN(v))) return null;
-    const R = 6371000;
-    const toRad = deg => (deg * Math.PI) / 180;
-    const dLat = toRad(y2 - y1);
-    const dLon = toRad(x2 - x1);
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(toRad(y1)) * Math.cos(toRad(y2)) *
-      Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  }
-
-  function formatDistance(meters) {
-    if (meters === null || isNaN(meters)) return 'Chưa có GPS';
-    if (meters < 1000) return `${Math.round(meters)}m`;
-    return `${(meters / 1000).toFixed(2)}km`;
-  }
-
-  // --- TOAST & CUSTOM MODAL (NO NATIVE ALERT/CONFIRM) ---
+  // --- TOAST & CUSTOM MODAL ---
   function showToast(message, type = 'success', duration = 3400) {
     const container = document.getElementById('toastContainer');
     if (!container) return;
@@ -252,7 +252,6 @@
         }
         if (!db.objectStoreNames.contains('survey_records')) {
           const store = db.createObjectStore('survey_records', { keyPath: 'id' });
-          store.createIndex('by_round', 'round', { unique: false });
           store.createIndex('by_stt', 'stt', { unique: false });
         }
       };
@@ -303,25 +302,14 @@
     const records = await dbGetAll('survey_records');
     state.surveyRecords.clear();
     records.forEach(r => state.surveyRecords.set(r.id, r));
-
-    // If completely empty on first launch, seed 50 default Mekong Delta plots (Dong Thap / Can Tho) in master_plots so user can immediately explore the 50-plot map or start Round 1
-    if (state.masterPlots.size === 0 && window.DBSCL_PRESETS && window.DBSCL_PRESETS.dong_thap_50) {
-      for (const item of window.DBSCL_PRESETS.dong_thap_50) {
-        await dbPut('master_plots', item);
-        state.masterPlots.set(item.stt, item);
-      }
-    }
   }
 
-  function getRecord(round, stt) {
-    return state.surveyRecords.get(`R${round}_${stt}`) || null;
+  function getRecord(stt) {
+    return state.surveyRecords.get(`R1_${normalizeStt(stt)}`) || null;
   }
 
-  function getRecordsForRound(round) {
-    const list = [];
-    state.surveyRecords.forEach(rec => {
-      if (Number(rec.round) === Number(round)) list.push(rec);
-    });
+  function getAllSavedRecords() {
+    const list = Array.from(state.surveyRecords.values());
     return list.sort((a, b) => a.stt.localeCompare(b.stt, undefined, { numeric: true }));
   }
 
@@ -333,6 +321,93 @@
     state.masterPlots.forEach((_, stt) => codes.add(stt));
     state.surveyRecords.forEach(rec => codes.add(rec.stt));
     return Array.from(codes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }
+
+  // --- CLEAR VISUAL SAVE STATUS UPDATER ---
+  function updateCurrentPointSaveStatusUI() {
+    const stt = normalizeStt(document.getElementById('sttInput').value);
+    const savedRec = getRecord(stt);
+    const nextStt = getNextSttCode(stt);
+
+    // Update all .lbl-current-stt spans
+    document.querySelectorAll('.lbl-current-stt').forEach(el => {
+      el.textContent = stt;
+    });
+    const nextLbl = document.getElementById('lblNextStt');
+    if (nextLbl) nextLbl.textContent = nextStt;
+
+    const headerPointBox = document.getElementById('headerCurrentPointBox');
+    if (headerPointBox) headerPointBox.textContent = `Điểm đang mở: ${stt}`;
+
+    const headerBadge = document.getElementById('headerPointStatusBadge');
+    const formPill = document.getElementById('formPointStatusPill');
+    const bottomBanner = document.getElementById('saveStatusBanner');
+    const saveBtn = document.getElementById('btnSaveRecordStay');
+
+    if (savedRec && !state.isCurrentFormDirty) {
+      const timeStr = formatShortTime(savedRec.savedAt);
+      if (headerBadge) {
+        headerBadge.textContent = `✅ ĐÃ LƯU (${timeStr})`;
+        headerBadge.style.background = '#22c55e';
+        headerBadge.style.color = '#052e16';
+      }
+      if (formPill) {
+        formPill.className = 'status-pill-done';
+        formPill.textContent = `✅ ĐÃ LƯU VÀO MÁY (Lúc ${timeStr} • Có thể sửa lại)`;
+      }
+      if (bottomBanner) {
+        bottomBanner.style.background = 'rgba(34, 197, 94, 0.28)';
+        bottomBanner.style.borderColor = '#4ade80';
+        bottomBanner.style.color = '#bbf7d0';
+        bottomBanner.innerHTML = `✅ ĐIỂM <strong>${stt}</strong> ĐÃ ĐƯỢC LƯU THÀNH CÔNG! (Lưu lúc ${timeStr} • Tọa độ: ${savedRec.x}, ${savedRec.y})<br/><span style="font-size:0.84rem;color:#fef08a;">👉 Bạn có thể bấm nút <strong>"➕ BẤM QUA ĐIỂM MỚI (${nextStt})"</strong> ở dưới để đi đo điểm tiếp theo!</span>`;
+      }
+      if (saveBtn) {
+        saveBtn.innerHTML = `✅ ĐÃ LƯU ${stt} (Bấm để lưu cập nhật nếu sửa)`;
+      }
+    } else if (savedRec && state.isCurrentFormDirty) {
+      if (headerBadge) {
+        headerBadge.textContent = '📝 ĐANG SỬA (CHƯA LƯU)';
+        headerBadge.style.background = '#f59e0b';
+        headerBadge.style.color = '#0f172a';
+      }
+      if (formPill) {
+        formPill.className = 'status-pill-todo';
+        formPill.textContent = `📝 ĐANG SỬA ĐIỂM ${stt} (Hãy bấm Lưu để cập nhật)`;
+      }
+      if (bottomBanner) {
+        bottomBanner.style.background = 'rgba(245, 158, 11, 0.28)';
+        bottomBanner.style.borderColor = '#facc15';
+        bottomBanner.style.color = '#fef08a';
+        bottomBanner.innerHTML = `📝 ĐIỂM <strong>${stt}</strong> VỪA CÓ CHỈNH SỬA MỚI — Hãy bấm <strong>"💾 LƯU CẬP NHẬT ĐIỂM ${stt}"</strong> bên dưới!`;
+      }
+      if (saveBtn) {
+        saveBtn.innerHTML = `💾 LƯU CẬP NHẬT ĐIỂM ${stt}`;
+      }
+    } else {
+      if (headerBadge) {
+        headerBadge.textContent = '⏳ CHƯA LƯU';
+        headerBadge.style.background = '#ea580c';
+        headerBadge.style.color = '#ffffff';
+      }
+      if (formPill) {
+        formPill.className = 'status-pill-todo';
+        formPill.textContent = `⏳ ĐIỂM MỚI ${stt} (CHƯA LƯU)`;
+      }
+      if (bottomBanner) {
+        bottomBanner.style.background = 'rgba(234, 88, 12, 0.25)';
+        bottomBanner.style.borderColor = '#fb923c';
+        bottomBanner.style.color = '#ffedd5';
+        bottomBanner.innerHTML = `⏳ TRẠNG THÁI ĐIỂM <strong>${stt}</strong>: <strong>CHƯA LƯU VÀO MÁY</strong> — Sau khi lấy GPS và nhập số liệu, hãy bấm <strong>"💾 LƯU ĐIỂM ${stt}"</strong>!`;
+      }
+      if (saveBtn) {
+        saveBtn.innerHTML = `💾 LƯU ĐIỂM ${stt}`;
+      }
+    }
+  }
+
+  function markFormDirty() {
+    state.isCurrentFormDirty = true;
+    updateCurrentPointSaveStatusUI();
   }
 
   // --- UI RENDERING & BINDING ---
@@ -358,6 +433,7 @@
         document.querySelectorAll('#stagesGrid .stage-btn').forEach(b => {
           b.classList.toggle('selected', Number(b.dataset.stage) === st.code);
         });
+        markFormDirty();
         reStampExistingPhotos();
       });
       grid.appendChild(btn);
@@ -380,6 +456,7 @@
         vInput.value = v;
         syncVarietyMethodChips();
         updateCombinedNotePreview();
+        markFormDirty();
         reStampExistingPhotos();
       });
       vContainer.appendChild(btn);
@@ -395,6 +472,7 @@
         mInput.value = m;
         syncVarietyMethodChips();
         updateCombinedNotePreview();
+        markFormDirty();
         reStampExistingPhotos();
       });
       mContainer.appendChild(btn);
@@ -428,7 +506,7 @@
     document.getElementById('finalNotePreview').value = combined;
   }
 
-  function setWaterRegime(code) {
+  function setWaterRegime(code, markDirty = false) {
     const strCode = String(code);
     document.getElementById('selectedWaterInput').value = strCode;
     document.querySelectorAll('#waterRegimeGrid .water-btn').forEach(btn => {
@@ -442,6 +520,7 @@
       section.style.display = 'none';
       document.getElementById('waterAvgOutput').value = '';
     }
+    if (markDirty) markFormDirty();
     reStampExistingPhotos();
   }
 
@@ -471,69 +550,48 @@
     const das = computeDAS(sowStr, survStr);
 
     if (das === null) {
-      banner.innerHTML = '🌱 Nhập <strong>Ngày sạ/cấy (dd/mm/yyyy)</strong> để tự động tính số ngày sau sạ (NSS / DAS) và đối chiếu giai đoạn lúa.';
+      banner.innerHTML = '🌱 Nhập <strong>Ngày sạ/cấy (dd/mm/yyyy)</strong> để tự động tính số ngày sau sạ (NSS / DAS) và gợi ý giai đoạn lúa.';
       return;
     }
     const suggestedCode = suggestStageFromDAS(das);
     const stObj = RICE_STAGES.find(s => s.code === suggestedCode);
     banner.innerHTML = `
       ⏱️ Tuổi lúa tính đến ngày khảo sát: <strong>${das} ngày sau sạ/cấy (NSS/DAS)</strong>
-      ${stObj ? ` • Gợi ý sinh học: <strong>GĐ ${stObj.code} - ${stObj.vi} (${stObj.en})</strong> <button type="button" id="btnApplySuggestedStage" class="btn btn-yellow btn-sm" style="padding:2px 8px;font-size:0.74rem;margin-left:6px;">Chọn GĐ ${stObj.code}</button>` : ''}
+      ${stObj ? ` • Gợi ý: <strong>GĐ ${stObj.code} - ${stObj.vi} (${stObj.en})</strong> <button type="button" id="btnApplySuggestedStage" class="btn btn-yellow btn-sm" style="padding:2px 8px;font-size:0.74rem;margin-left:6px;">Chọn GĐ ${stObj.code}</button>` : ''}
     `;
     const btnApply = document.getElementById('btnApplySuggestedStage');
     if (btnApply && stObj) {
       btnApply.addEventListener('click', () => {
         document.getElementById('selectedStageInput').value = String(stObj.code);
         renderStagesGrid();
+        markFormDirty();
         reStampExistingPhotos();
       });
     }
   }
 
   function updateHeaderAndProgressUI() {
-    const round = state.currentRound;
-    document.getElementById('roundSelect').value = String(round);
     document.getElementById('surveyorInput').value = state.surveyorName;
-
     const sCode = getSurveyorCode(state.surveyorName);
     document.getElementById('surveyorCodeBadge').textContent = sCode;
 
-    const modeTag = document.getElementById('roundModeTag');
-    const instrBox = document.getElementById('roundInstructionBox');
-    if (round === 1) {
-      modeTag.textContent = 'SETUP 50 RUỘNG GỐC';
-      modeTag.style.background = '#facc15';
-      instrBox.innerHTML = `🌱 <strong>ĐỢT 1 (Thiết lập 50 điểm ruộng gốc):</strong> Bấm "Lấy vị trí GPS hiện tại", kéo ghim hoặc chạm vào giữa thửa ruộng trên bản đồ vệ tinh để chốt tọa độ gốc <code>X, Y</code> cùng Ngày sạ/cấy, Giống lúa cho cả vụ.`;
-    } else {
-      modeTag.textContent = `ĐỢT LẶP LẠI (${round}/9)`;
-      modeTag.style.background = '#4ade80';
-      instrBox.innerHTML = `🔄 <strong>ĐỢT ${round} (Khảo sát lặp lại 50 điểm cố định):</strong> Tọa độ gốc <code>X, Y</code>, Ngày sạ/cấy, Giống lúa và Phương pháp được <strong>tự động điền và khóa theo Đợt 1</strong>. Chỉ cần đi tới ghim màu Cam trên bản đồ, chọn Giai đoạn mới, Chế độ nước và chụp 3 ảnh Đợt ${round}.`;
-    }
-
-    const roundRecords = getRecordsForRound(round);
-    const doneCount = roundRecords.length;
-    const remainCount = Math.max(0, TOTAL_TARGET_PLOTS - doneCount);
+    const savedRecords = getAllSavedRecords();
+    const doneCount = savedRecords.length;
     const pct = Math.min(100, Math.round((doneCount / TOTAL_TARGET_PLOTS) * 100));
 
     document.getElementById('progressText').textContent =
-      `Tiến độ Đợt ${round}: Đã đo ${doneCount} / ${TOTAL_TARGET_PLOTS} điểm ruộng (Còn lại ${remainCount} điểm)`;
+      `Tiến độ Đợt 1: Đã lưu ${doneCount} / ${TOTAL_TARGET_PLOTS} điểm ruộng`;
     document.getElementById('progressBarFill').style.width = `${pct}%`;
-    document.getElementById('masterRegistryBadge').textContent =
-      `Danh mục gốc: ${state.masterPlots.size}/${TOTAL_TARGET_PLOTS} ruộng`;
 
-    const badgeTodo = document.getElementById('navBadgeTodo');
-    if (remainCount > 0) {
-      badgeTodo.style.display = 'inline-block';
-      badgeTodo.textContent = String(remainCount);
-    } else {
-      badgeTodo.style.display = 'none';
-    }
+    const navSaved = document.getElementById('navBadgeSavedCount');
+    if (navSaved) navSaved.textContent = String(doneCount);
+    const listDone = document.getElementById('listDoneCount');
+    if (listDone) listDone.textContent = String(doneCount);
 
     populatePlotQuickSelect();
-    renderNearestSuggestions();
-    renderRoundsMatrix();
     renderPlotListTab();
     updateExportPreviewUI();
+    updateCurrentPointSaveStatusUI();
   }
 
   function populatePlotQuickSelect() {
@@ -542,83 +600,53 @@
     sel.innerHTML = '';
 
     allCodes.forEach(stt => {
-      const rec = getRecord(state.currentRound, stt);
+      const rec = getRecord(stt);
       const master = state.masterPlots.get(stt);
-      let distLabel = '';
-      if (state.userGPS.x !== null && master && master.x && master.y) {
-        const d = calcDistanceMeters(state.userGPS.x, state.userGPS.y, master.x, master.y);
-        if (d !== null) distLabel = ` • cách ${formatDistance(d)}`;
-      }
-      const statusIcon = rec ? '🟢 ✓ Đã đo' : '🟠 Chưa đo';
-      const info = master
-        ? `${master.variety || ''} ${master.xa ? '- ' + master.xa : ''}`.trim()
-        : 'Chưa có tọa độ gốc';
+      const statusIcon = rec ? `🟢 ĐÃ LƯU ✓ (${rec.x}, ${rec.y})` : '🟠 Chưa lưu';
+      const info = rec
+        ? `${rec.note || ''}`
+        : (master ? `${master.variety || ''} ${master.xa ? '- ' + master.xa : ''}`.trim() : '');
 
       const opt = document.createElement('option');
       opt.value = stt;
-      opt.textContent = `${stt} [${statusIcon}] ${info ? '— ' + info : ''}${distLabel}`;
+      opt.textContent = `${stt} — ${statusIcon} ${info ? '• ' + info : ''}`;
       if (stt === state.currentPlotStt) opt.selected = true;
       sel.appendChild(opt);
     });
   }
 
-  // Load selected plot into the Tab 1 Survey Form (inheriting Master Plot data in Rounds 2-9)
+  // Load selected plot into the Form (Always editable in Đợt 1)
   function selectPlotIntoForm(sttRaw, options = {}) {
     const stt = normalizeStt(sttRaw);
     state.currentPlotStt = stt;
-    state.coordUnlockedInRepeatRound = false;
+    state.isCurrentFormDirty = false;
 
     document.getElementById('sttInput').value = stt;
     const quickSel = document.getElementById('plotSelectQuick');
     if (quickSel) quickSel.value = stt;
 
-    const round = state.currentRound;
-    const existingRec = getRecord(round, stt);
-    const master = state.masterPlots.get(stt) || (state.surveyRecords.get(`R1_${stt}`) ? {
-      stt,
-      x: state.surveyRecords.get(`R1_${stt}`).x,
-      y: state.surveyRecords.get(`R1_${stt}`).y,
-      sowingDate: state.surveyRecords.get(`R1_${stt}`).sowingDate,
-      variety: state.surveyRecords.get(`R1_${stt}`).variety,
-      method: state.surveyRecords.get(`R1_${stt}`).method
-    } : null);
-
-    // Check previous round stage for comparison
-    const prevBanner = document.getElementById('prevStageComparisonBanner');
-    let prevRec = null;
-    for (let r = round - 1; r >= 1; r--) {
-      const candidate = getRecord(r, stt);
-      if (candidate) {
-        prevRec = candidate;
-        break;
-      }
-    }
-    if (prevRec) {
-      const stObj = RICE_STAGES.find(s => s.code === Number(prevRec.growthStage));
-      prevBanner.style.display = 'block';
-      prevBanner.innerHTML = `📌 <strong>Đối chiếu chuỗi thời gian (${stt}):</strong> Ở <strong>Đợt ${prevRec.round}</strong> (${prevRec.surveyDateTime}), ruộng này ở <strong>Giai đoạn ${prevRec.growthStage} (${stObj ? stObj.vi : ''})</strong> • Chế độ nước: <strong>Mã ${prevRec.waterRegime}</strong>.`;
-    } else {
-      prevBanner.style.display = 'none';
-    }
+    const existingRec = getRecord(stt);
+    const master = state.masterPlots.get(stt);
 
     const xInput = document.getElementById('coordXInput');
     const yInput = document.getElementById('coordYInput');
-    const lockBtn = document.getElementById('btnToggleCoordLock');
+    xInput.readOnly = false;
+    yInput.readOnly = false;
 
     if (existingRec) {
-      // Editing an already-saved record in current round
+      // Load saved record for viewing or editing
       xInput.value = Number(existingRec.x).toFixed(6);
       yInput.value = Number(existingRec.y).toFixed(6);
       document.getElementById('surveyDateTimeInput').value = existingRec.surveyDateTime || formatNowDateTime();
-      document.getElementById('sowingDateInput').value = existingRec.sowingDate || (master ? master.sowingDate : '');
+      document.getElementById('sowingDateInput').value = existingRec.sowingDate || '';
       document.getElementById('selectedStageInput').value = String(existingRec.growthStage || 3);
-      setWaterRegime(existingRec.waterRegime || '1');
+      setWaterRegime(existingRec.waterRegime || '1', false);
       document.getElementById('waterM1').value = existingRec.waterM1 !== undefined ? existingRec.waterM1 : '';
       document.getElementById('waterM2').value = existingRec.waterM2 !== undefined ? existingRec.waterM2 : '';
       document.getElementById('waterM3').value = existingRec.waterM3 !== undefined ? existingRec.waterM3 : '';
       document.getElementById('waterAvgOutput').value = existingRec.waterLevelAvg || '';
-      document.getElementById('varietyInput').value = existingRec.variety || (master ? master.variety : 'OM5454');
-      document.getElementById('methodInput').value = existingRec.method || (master ? master.method : 'Sạ hàng');
+      document.getElementById('varietyInput').value = existingRec.variety || 'OM5454';
+      document.getElementById('methodInput').value = existingRec.method || 'Sạ hàng';
       document.getElementById('roundExtraNoteInput').value = existingRec.extraNote || '';
       document.getElementById('finalNotePreview').value = existingRec.note || '';
 
@@ -628,48 +656,45 @@
         Can2: existingRec.photos && existingRec.photos.Can2 ? { ...existingRec.photos.Can2 } : null
       };
     } else {
-      // New measurement for this plot in current round -> inherit from Master Plot (Đợt 1)
+      // Brand new unsaved point in Đợt 1
       if (master && master.x && master.y) {
         xInput.value = Number(master.x).toFixed(6);
         yInput.value = Number(master.y).toFixed(6);
-      } else if (state.userGPS.x && state.userGPS.y && round === 1) {
+      } else if (state.userGPS.x !== null && state.userGPS.y !== null) {
         xInput.value = Number(state.userGPS.x).toFixed(6);
         yInput.value = Number(state.userGPS.y).toFixed(6);
       } else {
-        xInput.value = '105.741040';
-        yInput.value = '10.546230';
+        xInput.value = '';
+        yInput.value = '';
       }
 
       document.getElementById('surveyDateTimeInput').value = formatNowDateTime();
-      document.getElementById('sowingDateInput').value = master && master.sowingDate ? master.sowingDate : '15/10/2026';
-      document.getElementById('varietyInput').value = master && master.variety ? master.variety : 'OM5454';
-      document.getElementById('methodInput').value = master && master.method ? master.method : 'Sạ hàng';
+      if (master && master.sowingDate) {
+        document.getElementById('sowingDateInput').value = master.sowingDate;
+      }
+      if (master && master.variety) {
+        document.getElementById('varietyInput').value = master.variety;
+      } else if (!document.getElementById('varietyInput').value) {
+        document.getElementById('varietyInput').value = 'OM5454';
+      }
+      if (master && master.method) {
+        document.getElementById('methodInput').value = master.method;
+      } else if (!document.getElementById('methodInput').value) {
+        document.getElementById('methodInput').value = 'Sạ hàng';
+      }
+
       document.getElementById('roundExtraNoteInput').value = '';
-
-      // Auto-suggest stage from DAS or increment from previous round
-      const das = computeDAS(document.getElementById('sowingDateInput').value, document.getElementById('surveyDateTimeInput').value);
-      const suggestedStage = suggestStageFromDAS(das) || (prevRec ? Math.min(12, Number(prevRec.growthStage) + 1) : 3);
-      document.getElementById('selectedStageInput').value = String(suggestedStage);
-
-      setWaterRegime('1');
       document.getElementById('waterM1').value = '';
       document.getElementById('waterM2').value = '';
       document.getElementById('waterM3').value = '';
       document.getElementById('waterAvgOutput').value = '';
 
       state.currentPhotos = { TongQuan: null, Can1: null, Can2: null };
-    }
 
-    // Lock or unlock coordinates based on Round 1 vs Rounds 2-9
-    if (round > 1 && master && master.x && master.y) {
-      xInput.readOnly = true;
-      yInput.readOnly = true;
-      lockBtn.style.display = 'inline-flex';
-      lockBtn.textContent = '🔒 Đang khóa tọa độ gốc Đợt 1 (Bấm để mở khóa)';
-    } else {
-      xInput.readOnly = false;
-      yInput.readOnly = false;
-      lockBtn.style.display = 'none';
+      // Automatically request fresh GPS when switching to a new unsaved point
+      if (options.autoGetGPS) {
+        requestCurrentGPS(true);
+      }
     }
 
     renderStagesGrid();
@@ -677,100 +702,61 @@
     updateCombinedNotePreview();
     updateDASAndStageHints();
     updatePhotoCardsUI();
-    updateSaveButtonLabel();
-    updateDistanceCheckBanner();
+    updateCurrentPointSaveStatusUI();
     syncMapsToCurrentPlot(options.panMap !== false);
   }
 
-  function updateSaveButtonLabel() {
-    const stt = normalizeStt(document.getElementById('sttInput').value);
-    const round = state.currentRound;
-    const existing = getRecord(round, stt);
-    document.getElementById('btnSavePlotLabel').textContent =
-      existing ? `CẬP NHẬT ${stt} - ĐỢT ${round}` : `${stt} - ĐỢT ${round}`;
-  }
+  // Move to a new point (with protection if current point has unsaved data)
+  function handleGoToNewPoint() {
+    const curStt = normalizeStt(document.getElementById('sttInput').value);
+    const nextStt = getNextSttCode(curStt);
+    const savedRec = getRecord(curStt);
+    const hasPhotos = !!(state.currentPhotos.TongQuan || state.currentPhotos.Can1 || state.currentPhotos.Can2);
+    const hasCoords = !!(document.getElementById('coordXInput').value && document.getElementById('coordYInput').value);
 
-  function updateDistanceCheckBanner() {
-    const banner = document.getElementById('distanceCheckBanner');
-    const plotX = parseFloat(document.getElementById('coordXInput').value);
-    const plotY = parseFloat(document.getElementById('coordYInput').value);
-    if (state.userGPS.x === null || isNaN(plotX) || isNaN(plotY)) {
-      banner.style.display = 'none';
-      return;
-    }
-    const dist = calcDistanceMeters(state.userGPS.x, state.userGPS.y, plotX, plotY);
-    if (dist === null) {
-      banner.style.display = 'none';
-      return;
-    }
-    banner.style.display = 'block';
-    if (dist <= 100) {
-      banner.style.background = 'rgba(34, 197, 94, 0.16)';
-      banner.style.border = '1.5px solid #4ade80';
-      banner.style.color = '#bbf7d0';
-      banner.innerHTML = `✅ Vị trí GPS của bạn đang cách tâm ruộng <strong>${state.currentPlotStt}</strong> khoảng <strong>${formatDistance(dist)}</strong> (Trong phạm vi chuẩn ≤ 100m).`;
-    } else {
-      banner.style.background = 'rgba(245, 158, 11, 0.18)';
-      banner.style.border = '1.5px solid #facc15';
-      banner.style.color = '#fef08a';
-      banner.innerHTML = `⚠️ Chú ý: GPS hiện tại của điện thoại cách tâm điểm <strong>${state.currentPlotStt}</strong> khoảng <strong>${formatDistance(dist)}</strong> (> 100m). Hãy kiểm tra kỹ mã ruộng hoặc bấm "Chỉ đường Google Maps".`;
-    }
-  }
-
-  // --- NEAREST UNVISITED PLOTS SUGGESTION ---
-  function renderNearestSuggestions() {
-    const container1 = document.getElementById('nearestChipsContainer');
-    const container2 = document.getElementById('mapNearestList');
-    const allCodes = getAllOrderedPlotCodes();
-
-    const refX = state.userGPS.x !== null ? state.userGPS.x : parseFloat(document.getElementById('coordXInput').value || '105.741040');
-    const refY = state.userGPS.y !== null ? state.userGPS.y : parseFloat(document.getElementById('coordYInput').value || '10.546230');
-
-    const unvisited = [];
-    allCodes.forEach(stt => {
-      if (getRecord(state.currentRound, stt)) return; // skip already visited in this round
-      const master = state.masterPlots.get(stt);
-      if (!master || !master.x || !master.y) return;
-      const dist = calcDistanceMeters(refX, refY, master.x, master.y);
-      unvisited.push({ stt, master, dist });
-    });
-
-    unvisited.sort((a, b) => (a.dist ?? 999999) - (b.dist ?? 999999));
-    const topItems = unvisited.slice(0, 12);
-
-    const buildHTML = () => {
-      if (topItems.length === 0) {
-        return `<div style="padding:8px;color:#86efac;font-weight:800;">🎉 Tuyệt vời! Đã hoàn thành khảo sát toàn bộ 50/50 điểm ruộng của Đợt ${state.currentRound}.</div>`;
-      }
-      return topItems.map(item => {
-        const isCurrent = item.stt === state.currentPlotStt;
-        const distBadge = state.userGPS.x !== null
-          ? `Cách ${formatDistance(item.dist)}`
-          : `${formatDistance(item.dist)}`;
-        return `
-          <div class="nearest-chip ${isCurrent ? 'active' : ''}" data-select-stt="${item.stt}">
-            <div class="nearest-chip-top">
-              <span>📍 ${item.stt}</span>
-              <span class="nearest-dist">${distBadge}</span>
-            </div>
-            <div class="nearest-chip-sub">${item.master.variety || 'Lúa'} • ${item.master.xa || 'ĐBSCL'}</div>
-          </div>
-        `;
-      }).join('');
-    };
-
-    const html = buildHTML();
-    if (container1) container1.innerHTML = html;
-    if (container2) container2.innerHTML = html;
-
-    document.querySelectorAll('[data-select-stt]').forEach(el => {
-      el.addEventListener('click', () => {
-        const stt = el.getAttribute('data-select-stt');
-        selectPlotIntoForm(stt, { panMap: true });
-        renderNearestSuggestions();
-        showToast(`Đã chọn điểm ruộng ${stt} (Đợt ${state.currentRound})`);
+    // If current point is NOT saved yet (or has unsaved edits) and user already entered coords/photos, ask if they want to save first
+    if ((!savedRec && (hasPhotos || state.isCurrentFormDirty)) || (savedRec && state.isCurrentFormDirty)) {
+      showModal({
+        title: `⚠️ Điểm ${curStt} chưa lưu thay đổi!`,
+        html: `
+          <p style="margin-bottom:8px;">
+            Bạn đang nhập dữ liệu cho điểm <strong>${curStt}</strong> nhưng chưa bấm Lưu.
+          </p>
+          <p style="color:#fde047;font-weight:700;">
+            Bạn muốn <strong>Lưu điểm ${curStt} rồi qua điểm mới ${nextStt}</strong>, hay bỏ qua không lưu?
+          </p>
+        `,
+        buttons: [
+          { label: 'Ở lại', className: 'btn btn-outline btn-sm' },
+          {
+            label: `Bỏ qua, sang ${nextStt}`,
+            className: 'btn btn-danger btn-sm',
+            onClick: () => {
+              selectPlotIntoForm(nextStt, { panMap: true, autoGetGPS: true });
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+              showToast(`Đã chuyển sang điểm mới ${nextStt}`);
+            }
+          },
+          {
+            label: `💾 Lưu ${curStt} & Qua ${nextStt}`,
+            className: 'btn btn-yellow btn-sm',
+            onClick: async () => {
+              const ok = await handleSaveSurveyRecord({ silentPopup: true });
+              if (ok) {
+                selectPlotIntoForm(nextStt, { panMap: true, autoGetGPS: true });
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                showToast(`✅ Đã lưu ${curStt} và chuyển sang điểm mới ${nextStt}!`);
+              }
+            }
+          }
+        ]
       });
-    });
+      return;
+    }
+
+    selectPlotIntoForm(nextStt, { panMap: true, autoGetGPS: true });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    showToast(`👉 Đã chuyển sang điểm mới: ${nextStt}. Đang lấy GPS...`);
   }
 
   // --- INTERACTIVE SATELLITE MAPS (LEAFLET + ESRI WORLD IMAGERY) ---
@@ -779,7 +765,7 @@
       'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
       {
         maxZoom: 19,
-        attribution: 'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics'
+        attribution: 'Tiles &copy; Esri'
       }
     );
     const roadLabels = L.tileLayer(
@@ -801,14 +787,14 @@
   }
 
   function initMaps() {
-    const defaultLat = 10.546230;
-    const defaultLon = 105.741040;
+    const defaultLat = 10.450000;
+    const defaultLon = 105.650000;
 
     // 1. Mini Map inside Form (Tab 1)
     const layers1 = createSatelliteLayers();
     state.miniMap = L.map('miniMap', {
       center: [defaultLat, defaultLon],
-      zoom: 17,
+      zoom: 15,
       layers: [layers1.hybridGroup],
       zoomControl: true
     });
@@ -820,16 +806,12 @@
 
     state.miniMarkersLayer = L.layerGroup().addTo(state.miniMap);
 
-    // Tap on miniMap to set coordinates when in Round 1 or unlocked
+    // Tap anywhere on miniMap to set coordinates in Đợt 1
     state.miniMap.on('click', (e) => {
-      if (state.currentRound > 1 && !state.coordUnlockedInRepeatRound) {
-        showToast('Tọa độ đang khóa theo Đợt 1. Bấm "Mở khóa" nếu muốn dời tâm ruộng.', 'warn');
-        return;
-      }
       setFormCoordinates(e.latlng.lng, e.latlng.lat, true);
     });
 
-    // 2. Full Map of 50 Plots (Tab 2)
+    // 2. Full Map (Tab 2)
     const layers2 = createSatelliteLayers();
     state.fullMap = L.map('fullMap', {
       center: [defaultLat, defaultLon],
@@ -846,25 +828,23 @@
     state.fullMarkersLayer = L.layerGroup().addTo(state.fullMap);
 
     state.fullMap.on('click', (e) => {
-      if (state.currentRound === 1 || state.coordUnlockedInRepeatRound) {
-        setFormCoordinates(e.latlng.lng, e.latlng.lat, true);
-      }
+      setFormCoordinates(e.latlng.lng, e.latlng.lat, true);
     });
 
     refreshMapMarkers();
   }
 
-  function setFormCoordinates(lon, lat, fromMapTap = false) {
+  function setFormCoordinates(lon, lat, fromUserAction = false) {
     const xStr = Number(lon).toFixed(6);
     const yStr = Number(lat).toFixed(6);
     document.getElementById('coordXInput').value = xStr;
     document.getElementById('coordYInput').value = yStr;
-    updateDistanceCheckBanner();
+    if (fromUserAction) {
+      markFormDirty();
+      showToast(`📍 Đã đặt tọa độ điểm ${state.currentPlotStt}: X=${xStr}, Y=${yStr}`);
+    }
     reStampExistingPhotos();
     refreshMapMarkers();
-    if (fromMapTap) {
-      showToast(`Đã chốt tọa độ ruộng ${state.currentPlotStt}: X=${xStr}, Y=${yStr}`);
-    }
   }
 
   function refreshMapMarkers() {
@@ -875,27 +855,19 @@
     const allCodes = getAllOrderedPlotCodes();
     const curX = parseFloat(document.getElementById('coordXInput').value);
     const curY = parseFloat(document.getElementById('coordYInput').value);
-    const canDragCurrent = (state.currentRound === 1 || state.coordUnlockedInRepeatRound);
 
-    let countAll = 0;
     let countDone = 0;
-    let countTodo = 0;
 
     allCodes.forEach(stt => {
+      const rec = getRecord(stt);
       const master = state.masterPlots.get(stt);
-      const rec = getRecord(state.currentRound, stt);
       const isSelected = (stt === state.currentPlotStt);
 
-      const lon = isSelected && !isNaN(curX) ? curX : (master ? parseFloat(master.x) : NaN);
-      const lat = isSelected && !isNaN(curY) ? curY : (master ? parseFloat(master.y) : NaN);
+      const lon = isSelected && !isNaN(curX) ? curX : (rec ? parseFloat(rec.x) : (master ? parseFloat(master.x) : NaN));
+      const lat = isSelected && !isNaN(curY) ? curY : (rec ? parseFloat(rec.y) : (master ? parseFloat(master.y) : NaN));
       if (isNaN(lon) || isNaN(lat)) return;
 
-      countAll++;
       if (rec) countDone++;
-      else countTodo++;
-
-      if (state.mapFilter === 'done' && !rec) return;
-      if (state.mapFilter === 'todo' && rec) return;
 
       const shortNum = stt.replace(/^CT/, '');
       const pinClass = isSelected
@@ -907,37 +879,31 @@
 
       const icon = L.divIcon({
         className: '',
-        html: `<div class="${pinClass}" style="width:34px;height:34px;">${pinLabel}</div>`,
-        iconSize: [34, 34],
-        iconAnchor: [17, 17],
+        html: `<div class="${pinClass}" style="width:36px;height:36px;">${pinLabel}</div>`,
+        iconSize: [36, 36],
+        iconAnchor: [18, 18],
         popupAnchor: [0, -16]
       });
-
-      const distM = state.userGPS.x !== null
-        ? calcDistanceMeters(state.userGPS.x, state.userGPS.y, lon, lat)
-        : null;
 
       const popupHTML = `
         <div style="min-width:210px;color:#0f172a;font-family:sans-serif;">
           <div style="font-weight:900;font-size:1rem;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;">
             <span>🌾 Điểm ${stt}</span>
             <span style="padding:2px 7px;border-radius:99px;font-size:0.74rem;color:#fff;background:${rec ? '#15803d' : '#ea580c'};">
-              ${rec ? `Đã đo Đợt ${state.currentRound} ✓` : `Chưa đo Đợt ${state.currentRound}`}
+              ${rec ? 'Đã lưu ✓' : 'Chưa lưu'}
             </span>
           </div>
           <div style="font-size:0.8rem;line-height:1.4;margin-bottom:8px;">
             <div><strong>X (Lon):</strong> ${lon.toFixed(6)} | <strong>Y (Lat):</strong> ${lat.toFixed(6)}</div>
-            ${master && master.xa ? `<div><strong>Địa bàn:</strong> ${master.xa} (${master.huyen || ''})</div>` : ''}
-            <div><strong>Giống &amp; PP:</strong> ${master ? `${master.variety || 'OM5454'} - ${master.method || 'Sạ hàng'}` : 'Chưa thiết lập'}</div>
-            <div><strong>Ngày sạ/cấy:</strong> ${master && master.sowingDate ? master.sowingDate : 'Chưa rõ'}</div>
-            ${distM !== null ? `<div style="color:#0369a1;font-weight:800;">📍 Cách vị trí bạn: ${formatDistance(distM)}</div>` : ''}
+            ${rec ? `<div><strong>Ghi chú:</strong> ${rec.note || ''}</div>` : ''}
+            ${rec ? `<div><strong>Ngày giờ:</strong> ${rec.surveyDateTime || ''}</div>` : ''}
           </div>
           <div style="display:flex;flex-direction:column;gap:6px;">
             <button type="button" onclick="window.__kslStartPlot('${stt}')" style="background:#16a34a;color:#fff;border:none;padding:8px 10px;border-radius:8px;font-weight:800;cursor:pointer;width:100%;">
-              📝 Khảo sát ruộng ${stt} (Đợt ${state.currentRound})
+              ✏️ Mở / Chỉnh sửa điểm ${stt}
             </button>
             <a href="https://www.google.com/maps/dir/?api=1&destination=${lat.toFixed(6)},${lon.toFixed(6)}&travelmode=two-wheeler" target="_blank" rel="noopener" style="background:#0284c7;color:#fff;text-decoration:none;text-align:center;padding:7px 10px;border-radius:8px;font-weight:800;font-size:0.82rem;">
-              🛵 Chỉ đường tới ruộng (Google Maps)
+              🛵 Chỉ đường Google Maps
             </a>
           </div>
         </div>
@@ -946,7 +912,7 @@
       // Full Map Marker
       const fMarker = L.marker([lat, lon], {
         icon,
-        draggable: isSelected && canDragCurrent
+        draggable: isSelected
       }).bindPopup(popupHTML);
 
       fMarker.on('dragend', (ev) => {
@@ -955,10 +921,10 @@
       });
       state.fullMarkersLayer.addLayer(fMarker);
 
-      // Mini Map Marker (show current plot as draggable + nearby plots)
+      // Mini Map Marker
       const mMarker = L.marker([lat, lon], {
         icon,
-        draggable: isSelected && canDragCurrent
+        draggable: isSelected
       }).bindPopup(popupHTML);
 
       mMarker.on('dragend', (ev) => {
@@ -968,15 +934,15 @@
       state.miniMarkersLayer.addLayer(mMarker);
     });
 
-    document.getElementById('mapCountAll').textContent = String(countAll);
-    document.getElementById('mapCountTodo').textContent = String(countTodo);
-    document.getElementById('mapCountDone').textContent = String(countDone);
+    const doneEl = document.getElementById('mapCountDone');
+    if (doneEl) doneEl.textContent = String(countDone);
   }
 
   window.__kslStartPlot = function (stt) {
     selectPlotIntoForm(stt, { panMap: true });
     switchTab('tab-survey');
-    showToast(`Đang khảo sát điểm ${stt} - Đợt ${state.currentRound}`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    showToast(`Đang mở điểm ${stt}`);
   };
 
   function syncMapsToCurrentPlot(pan = true) {
@@ -990,21 +956,26 @@
     }
   }
 
-  function fitAllMasterPlotsOnMap() {
+  function fitAllSavedPlotsOnMap() {
     if (!state.fullMap) return;
     const latlngs = [];
+    state.surveyRecords.forEach(r => {
+      if (!isNaN(parseFloat(r.y)) && !isNaN(parseFloat(r.x))) {
+        latlngs.push([parseFloat(r.y), parseFloat(r.x)]);
+      }
+    });
     state.masterPlots.forEach(m => {
       if (!isNaN(parseFloat(m.y)) && !isNaN(parseFloat(m.x))) {
         latlngs.push([parseFloat(m.y), parseFloat(m.x)]);
       }
     });
     if (latlngs.length > 0) {
-      state.fullMap.fitBounds(L.latLngBounds(latlngs), { padding: [28, 28], maxZoom: 16 });
+      state.fullMap.fitBounds(L.latLngBounds(latlngs), { padding: [28, 28], maxZoom: 17 });
     }
   }
 
   // --- GPS HIGH ACCURACY & COMPASS HEADING ---
-  function requestCurrentGPS(updatePlotCoordsIfRound1 = true) {
+  function requestCurrentGPS(setIntoForm = true) {
     const statusEl = document.getElementById('gpsStatusText');
     if (!navigator.geolocation) {
       statusEl.textContent = '⚠️ Trình duyệt không hỗ trợ GPS';
@@ -1012,7 +983,7 @@
       return;
     }
 
-    statusEl.textContent = '🛰️ Đang thu tín hiệu vệ tinh GPS độ chính xác cao...';
+    statusEl.textContent = '🛰️ Đang thu tín hiệu vệ tinh GPS thực địa...';
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const lon = pos.coords.longitude;
@@ -1024,9 +995,8 @@
         state.userGPS.accuracy = acc;
         state.userGPS.updatedAt = new Date();
 
-        statusEl.innerHTML = `🛰️ GPS thực tế: <strong>${lon.toFixed(6)}, ${lat.toFixed(6)}</strong> (Sai số <strong>±${acc}m</strong>)`;
+        statusEl.innerHTML = `✅ Đã lấy GPS: <strong>X=${lon.toFixed(6)}, Y=${lat.toFixed(6)}</strong> (Sai số <strong>±${acc}m</strong>)`;
 
-        // Draw user GPS accuracy circle on both maps
         if (state.miniMap) {
           if (state.userMiniCircle) state.miniMap.removeLayer(state.userMiniCircle);
           state.userMiniCircle = L.circle([lat, lon], {
@@ -1048,19 +1018,14 @@
           }).addTo(state.fullMap);
         }
 
-        if (updatePlotCoordsIfRound1 && (state.currentRound === 1 || state.coordUnlockedInRepeatRound)) {
-          setFormCoordinates(lon, lat, false);
+        if (setIntoForm) {
+          setFormCoordinates(lon, lat, true);
           if (state.miniMap) state.miniMap.setView([lat, lon], 18);
         }
-
-        populatePlotQuickSelect();
-        renderNearestSuggestions();
-        updateDistanceCheckBanner();
-        showToast(`Đã lấy vị trí GPS (±${acc}m)`);
       },
       (err) => {
-        statusEl.textContent = `⚠️ Không lấy được GPS (${err.message}). Vui lòng bật Vị trí hoặc chạm chọn trên bản đồ vệ tinh.`;
-        showToast('Không lấy được GPS. Bạn có thể chạm trực tiếp vào ruộng trên bản đồ vệ tinh!', 'warn');
+        statusEl.textContent = `⚠️ Không lấy được GPS tự động (${err.message}). Hãy chạm trực tiếp vào ruộng trên bản đồ vệ tinh bên dưới để lấy tọa độ!`;
+        showToast('Hãy bật Vị trí (Location) trên điện thoại hoặc chạm trực tiếp vào bản đồ vệ tinh!', 'warn');
       },
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
     );
@@ -1079,18 +1044,17 @@
         const dirs = ['Bắc', 'Đông Bắc', 'Đông', 'Đông Nam', 'Nam', 'Tây Nam', 'Tây', 'Tây Bắc'];
         const dirName = dirs[Math.round(heading / 45) % 8];
         const el = document.getElementById('compassHeadingText');
-        if (el) el.textContent = `🧭 Hướng: ${heading}° (${dirName})`;
+        if (el) el.textContent = `🧭 Hướng la bàn: ${heading}° (${dirName})`;
       }
     });
   }
 
   // --- HTML5 CANVAS 3-PHOTO STAMPING ("HÌNH CÓ CODE") ---
   function getPhotoFileName(typeKey) {
-    const round = state.currentRound;
     const stt = normalizeStt(document.getElementById('sttInput').value);
     const sCode = getSurveyorCode(state.surveyorName);
     const suffix = PHOTO_TYPES[typeKey].suffix;
-    return `Dot${round}_${stt}_${sCode}_${suffix}.jpg`;
+    return `Dot1_${stt}_${sCode}_${suffix}.jpg`;
   }
 
   function stampImageWithCode(rawDataUrl, typeKey) {
@@ -1114,16 +1078,13 @@
         canvas.height = h;
         const ctx = canvas.getContext('2d');
 
-        // 1. Draw base field photo
         ctx.drawImage(img, 0, 0, w, h);
 
-        // Collect metadata for watermark
-        const round = state.currentRound;
         const stt = normalizeStt(document.getElementById('sttInput').value);
         const typeLabel = PHOTO_TYPES[typeKey].label;
         const sName = (state.surveyorName || 'Chưa nhập').trim();
-        const xVal = (document.getElementById('coordXInput').value || '').trim();
-        const yVal = (document.getElementById('coordYInput').value || '').trim();
+        const xVal = (document.getElementById('coordXInput').value || 'Chưa có').trim();
+        const yVal = (document.getElementById('coordYInput').value || 'Chưa có').trim();
         const dtVal = (document.getElementById('surveyDateTimeInput').value || formatNowDateTime()).trim();
         const stageCode = document.getElementById('selectedStageInput').value || '3';
         const stObj = RICE_STAGES.find(s => String(s.code) === String(stageCode));
@@ -1134,8 +1095,8 @@
         const scale = Math.max(0.75, w / 1000);
         const pad = Math.round(16 * scale);
 
-        // 2. Top-Left Code Badge: ĐỢT <N> • <STT> • <LOẠI ẢNH>
-        const topText = `ĐỢT ${round} • ${stt} • ${typeLabel}`;
+        // Top-Left Code Badge: ĐỢT 1 • <STT> • <LOẠI ẢNH>
+        const topText = `ĐỢT 1 • ${stt} • ${typeLabel}`;
         ctx.font = `900 ${Math.round(28 * scale)}px sans-serif`;
         const topMetrics = ctx.measureText(topText);
         const badgeW = topMetrics.width + pad * 2;
@@ -1151,7 +1112,7 @@
         ctx.textBaseline = 'middle';
         ctx.fillText(topText, pad * 2, pad + badgeH / 2);
 
-        // 3. Bottom Semi-Transparent Info Banner
+        // Bottom Info Banner
         const bannerH = Math.round(96 * scale);
         const bannerY = h - bannerH;
         ctx.fillStyle = 'rgba(7, 20, 13, 0.82)';
@@ -1196,8 +1157,9 @@
         const rawDataUrl = e.target.result;
         const stamped = await stampImageWithCode(rawDataUrl, typeKey);
         state.currentPhotos[typeKey] = stamped;
+        markFormDirty();
         updatePhotoCardsUI();
-        showToast(`Đã đóng dấu mã Code lên ${PHOTO_TYPES[typeKey].titleVi} (${stamped.sizeKB} KB)`);
+        showToast(`📸 Đã đóng dấu mã Code lên ${PHOTO_TYPES[typeKey].titleVi} (${stamped.sizeKB} KB)`);
       } catch (err) {
         showToast('Lỗi xử lý ảnh: ' + err.message, 'error');
       }
@@ -1251,7 +1213,6 @@
     });
   }
 
-  // Generate realistic synthetic rice field photo for 1-click Demo / Testing
   async function generateDemoPhotosForCurrentPlot() {
     const stt = normalizeStt(document.getElementById('sttInput').value);
     const stageCode = parseInt(document.getElementById('selectedStageInput').value || '3', 10);
@@ -1263,21 +1224,18 @@
       const ctx = c.getContext('2d');
 
       if (typeKey === 'TongQuan') {
-        // Sky & Mekong Delta horizon
         const skyGrad = ctx.createLinearGradient(0, 0, 0, 340);
         skyGrad.addColorStop(0, '#0284c7');
         skyGrad.addColorStop(1, '#bae6fd');
         ctx.fillStyle = skyGrad;
         ctx.fillRect(0, 0, 1280, 340);
 
-        // Paddy field green carpet
         const fieldGrad = ctx.createLinearGradient(0, 340, 0, 960);
         fieldGrad.addColorStop(0, stageCode >= 10 ? '#ca8a04' : '#15803d');
         fieldGrad.addColorStop(1, stageCode >= 10 ? '#eab308' : '#22c55e');
         ctx.fillStyle = fieldGrad;
         ctx.fillRect(0, 340, 1280, 620);
 
-        // Draw rice rows perspective
         ctx.strokeStyle = stageCode >= 10 ? '#fef08a' : '#86efac';
         ctx.lineWidth = 3;
         for (let i = -600; i <= 1880; i += 65) {
@@ -1287,14 +1245,12 @@
           ctx.stroke();
         }
       } else {
-        // Close-up soil/water + rice stems
         const bgGrad = ctx.createLinearGradient(0, 0, 0, 960);
         bgGrad.addColorStop(0, '#064e3b');
         bgGrad.addColorStop(1, '#1e293b');
         ctx.fillStyle = bgGrad;
         ctx.fillRect(0, 0, 1280, 960);
 
-        // Draw lush rice blades
         for (let i = 0; i < 48; i++) {
           ctx.beginPath();
           const startX = 120 + (i * 22);
@@ -1306,7 +1262,6 @@
         }
       }
 
-      // Subtle center watermark indicating simulated field capture
       ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
       ctx.font = 'bold 34px sans-serif';
       ctx.fillText(`ẢNH THỰC ĐỊA MẪU • ${stt} (${PHOTO_TYPES[typeKey].label})`, 300, 480);
@@ -1314,60 +1269,52 @@
       const rawDataUrl = c.toDataURL('image/jpeg', 0.85);
       state.currentPhotos[typeKey] = await stampImageWithCode(rawDataUrl, typeKey);
     }
+    markFormDirty();
     updatePhotoCardsUI();
-    showToast(`Đã tạo & đóng dấu Code đủ 3 ảnh cho điểm ${stt}!`);
+    showToast(`Đã tạo 3 ảnh mẫu có Code cho điểm ${stt}!`);
   }
 
-  // --- SAVE RECORD WORKFLOW (WITH 100m SAFETY CHECK) ---
-  async function handleSaveSurveyRecord(bypassDistanceWarning = false) {
+  // --- SAVE RECORD WORKFLOW (WITH EXPLICIT CONFIRMATION & STAY/NEXT OPTIONS) ---
+  async function handleSaveSurveyRecord(options = {}) {
     const sName = document.getElementById('surveyorInput').value.trim();
     if (!sName) {
-      showToast('Vui lòng nhập Tên người khảo sát ở thanh đầu trang trước khi lưu!', 'error');
-      document.getElementById('surveyorInput').focus();
-      return;
+      showModal({
+        title: '⚠️ Chưa nhập Tên người khảo sát',
+        html: '<p>Vui lòng nhập <strong>Tên người khảo sát</strong> ở thanh đầu trang trước khi lưu điểm!</p>',
+        buttons: [{
+          label: 'Nhập ngay',
+          className: 'btn btn-yellow btn-sm',
+          onClick: () => document.getElementById('surveyorInput').focus()
+        }]
+      });
+      return false;
     }
     state.surveyorName = sName;
     localStorage.setItem('ksl_surveyorName', sName);
 
     const stt = normalizeStt(document.getElementById('sttInput').value);
+    state.currentPlotStt = stt;
+    document.getElementById('sttInput').value = stt;
+
     const xVal = parseFloat(document.getElementById('coordXInput').value);
     const yVal = parseFloat(document.getElementById('coordYInput').value);
 
     if (isNaN(xVal) || isNaN(yVal)) {
-      showToast('Tọa độ X (Kinh độ) và Y (Vĩ độ) không hợp lệ!', 'error');
-      return;
-    }
-
-    // Check >100m warning in Rounds 2-9 if phone GPS is active
-    const round = state.currentRound;
-    const distFromGPS = state.userGPS.x !== null
-      ? calcDistanceMeters(state.userGPS.x, state.userGPS.y, xVal, yVal)
-      : null;
-
-    if (!bypassDistanceWarning && round > 1 && distFromGPS !== null && distFromGPS > 100) {
       showModal({
-        title: `⚠️ Cảnh báo khoảng cách GPS (> 100m)`,
-        html: `
-          <p style="margin-bottom:8px;">
-            Vị trí GPS hiện tại của điện thoại đang cách tâm điểm ruộng <strong>${stt}</strong> khoảng <strong>${formatDistance(distFromGPS)}</strong>.
-          </p>
-          <p style="color:#fde047;font-weight:700;">
-            Hãy kiểm tra xem bạn có chọn nhầm mã ruộng không, hoặc bấm "Vẫn xác nhận lưu" nếu bạn đang đứng từ bờ đê/đường lộ chụp vào ruộng.
-          </p>
-        `,
+        title: `⚠️ Chưa có tọa độ GPS cho điểm ${stt}`,
+        html: `<p>Vui lòng bấm nút <strong>"📍 ĐỊNH VỊ GPS TẠI ĐÂY"</strong> hoặc <strong>chạm vào thửa ruộng trên bản đồ vệ tinh</strong> để lấy tọa độ X, Y trước khi lưu!</p>`,
         buttons: [
-          { label: 'Kiểm tra lại', className: 'btn btn-outline btn-sm' },
+          { label: 'Đóng', className: 'btn btn-outline btn-sm' },
           {
-            label: `✅ Vẫn xác nhận lưu ${stt}`,
+            label: '📍 Lấy GPS ngay',
             className: 'btn btn-yellow btn-sm',
-            onClick: () => handleSaveSurveyRecord(true)
+            onClick: () => requestCurrentGPS(true)
           }
         ]
       });
-      return;
+      return false;
     }
 
-    // Re-stamp photos one final time so filenames & burned-in text match 100%
     await reStampExistingPhotos();
 
     const waterRegime = document.getElementById('selectedWaterInput').value || '1';
@@ -1379,9 +1326,10 @@
     updateCombinedNotePreview();
     const finalNote = document.getElementById('finalNotePreview').value.trim();
 
+    const nowIso = new Date().toISOString();
     const record = {
-      id: `R${round}_${stt}`,
-      round,
+      id: `R1_${stt}`,
+      round: CURRENT_ROUND,
       surveyorName: sName,
       surveyorCode: getSurveyorCode(sName),
       stt,
@@ -1408,100 +1356,99 @@
         x: state.userGPS.x,
         y: state.userGPS.y,
         accuracy: state.userGPS.accuracy,
-        distanceToMasterM: distFromGPS !== null ? Math.round(distFromGPS) : null,
         heading: state.userGPS.heading
       },
-      savedAt: new Date().toISOString()
+      savedAt: nowIso
     };
 
     await dbPut('survey_records', record);
     state.surveyRecords.set(record.id, record);
 
-    // If Round 1 OR if plot is not yet in master_plots OR user unlocked coords, update Master Plot Registry
-    const existingMaster = state.masterPlots.get(stt);
-    if (round === 1 || !existingMaster || state.coordUnlockedInRepeatRound) {
-      const updatedMaster = {
-        ...(existingMaster || {}),
-        stt,
-        x: Number(xVal),
-        y: Number(yVal),
-        sowingDate: sowingDate || (existingMaster ? existingMaster.sowingDate : ''),
-        variety: variety || (existingMaster ? existingMaster.variety : ''),
-        method: method || (existingMaster ? existingMaster.method : ''),
-        baseNote: `${variety} - ${method}`.replace(/^ - | - $/g, ''),
-        updatedAt: new Date().toISOString()
-      };
-      await dbPut('master_plots', updatedMaster);
-      state.masterPlots.set(stt, updatedMaster);
+    const updatedMaster = {
+      ...(state.masterPlots.get(stt) || {}),
+      stt,
+      x: Number(xVal),
+      y: Number(yVal),
+      sowingDate,
+      variety,
+      method,
+      baseNote: finalNote,
+      updatedAt: nowIso
+    };
+    await dbPut('master_plots', updatedMaster);
+    state.masterPlots.set(stt, updatedMaster);
+
+    state.isCurrentFormDirty = false;
+    const savedTimeStr = formatShortTime(nowIso);
+    const lastBadge = document.getElementById('lastSavedTimeBadge');
+    if (lastBadge) {
+      lastBadge.textContent = `Vừa lưu: ${stt} lúc ${savedTimeStr}`;
     }
 
     updateHeaderAndProgressUI();
     refreshMapMarkers();
-    showToast(`✅ Đã lưu thành công điểm ${stt} (Đợt ${round})!`);
 
-    // Automatically jump to the next unvisited plot
-    jumpToNextUnvisitedPlot();
-  }
+    const nextStt = getNextSttCode(stt);
+    const photoCount = ['TongQuan', 'Can1', 'Can2'].filter(k => record.photos[k] && record.photos[k].stampedDataUrl).length;
+    const stObj = RICE_STAGES.find(s => s.code === record.growthStage);
 
-  function jumpToNextUnvisitedPlot() {
-    const allCodes = getAllOrderedPlotCodes();
-    const curIdx = allCodes.indexOf(state.currentPlotStt);
-    for (let offset = 1; offset <= allCodes.length; offset++) {
-      const candidate = allCodes[(curIdx + offset) % allCodes.length];
-      if (!getRecord(state.currentRound, candidate)) {
-        selectPlotIntoForm(candidate, { panMap: true });
-        return;
-      }
-    }
-    selectPlotIntoForm(state.currentPlotStt, { panMap: false });
-  }
-
-  // --- TAB 3: ROUNDS MATRIX & PLOT LIST ---
-  function renderRoundsMatrix() {
-    const container = document.getElementById('roundsMatrixContainer');
-    if (!container) return;
-    container.innerHTML = '';
-
-    for (let r = 1; r <= 9; r++) {
-      const count = getRecordsForRound(r).length;
-      const box = document.createElement('div');
-      box.className = `round-stat-box ${r === state.currentRound ? 'active' : ''}`;
-      box.innerHTML = `
-        <div style="font-size:0.76rem;font-weight:800;color:${r === state.currentRound ? '#facc15' : 'var(--text-secondary)'};">
-          ĐỢT ${r} ${r === 1 ? '(Gốc)' : ''}
-        </div>
-        <div style="font-size:1rem;font-weight:900;color:${count > 0 ? '#4ade80' : 'var(--text-primary)'};">
-          ${count}/50
-        </div>
-      `;
-      box.addEventListener('click', () => {
-        state.currentRound = r;
-        localStorage.setItem('ksl_currentRound', String(r));
-        updateHeaderAndProgressUI();
-        selectPlotIntoForm(state.currentPlotStt, { panMap: false });
-        showToast(`Đã chuyển sang Đợt ${r}`);
+    if (!options.silentPopup) {
+      showModal({
+        title: `✅ ĐÃ LƯU THÀNH CÔNG ĐIỂM ${stt}!`,
+        html: `
+          <div style="background:rgba(34,197,94,0.15);border:1.5px solid #4ade80;border-radius:10px;padding:12px;margin-bottom:12px;line-height:1.55;">
+            <div>📍 <strong>Mã điểm ruộng:</strong> <span style="color:#facc15;font-weight:900;">${stt}</span> (Lưu lúc ${savedTimeStr})</div>
+            <div>🛰️ <strong>Tọa độ đã chốt:</strong> X = <code>${record.x}</code>, Y = <code>${record.y}</code></div>
+            <div>🌾 <strong>Giai đoạn lúa:</strong> Mã ${record.growthStage} (${stObj ? stObj.vi : ''})</div>
+            <div>💧 <strong>Chế độ nước:</strong> Mã ${record.waterRegime}${record.waterLevelAvg ? ` (TB: ${record.waterLevelAvg} cm)` : ''}</div>
+            <div>📝 <strong>Ghi chú:</strong> ${record.note || '—'}</div>
+            <div>📸 <strong>Ảnh có Code đã lưu:</strong> ${photoCount} / 3 ảnh</div>
+            <div style="margin-top:6px;padding-top:6px;border-top:1px dashed rgba(255,255,255,0.2);color:#86efac;font-weight:800;">
+              📊 Tổng số điểm Đợt 1 đã lưu trong máy: ${state.surveyRecords.size} điểm
+            </div>
+          </div>
+          <p style="font-size:0.9rem;color:#fef08a;font-weight:700;">
+            Bạn muốn giữ nguyên điểm <strong>${stt}</strong> để xem/sửa tiếp hay chuyển sang điểm mới <strong>${nextStt}</strong>?
+          </p>
+        `,
+        buttons: [
+          {
+            label: `✏️ Ở lại điểm ${stt}`,
+            className: 'btn btn-outline btn-sm'
+          },
+          {
+            label: `➕ BẤM QUA ĐIỂM MỚI (${nextStt}) ➡️`,
+            className: 'btn btn-yellow btn-sm',
+            onClick: () => {
+              selectPlotIntoForm(nextStt, { panMap: true, autoGetGPS: true });
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+              showToast(`👉 Đã chuyển sang điểm mới: ${nextStt}`);
+            }
+          }
+        ]
       });
-      container.appendChild(box);
     }
+
+    return true;
   }
 
+  // --- TAB 3: SAVED PLOT LIST ---
   function renderPlotListTab() {
     const container = document.getElementById('plotListContainer');
     if (!container) return;
-    document.getElementById('listRoundTitle').textContent = `Đợt ${state.currentRound}`;
 
     const searchQ = (document.getElementById('searchPlotInput').value || '').trim().toLowerCase();
-    const statusFilter = document.getElementById('filterStatusSelect').value || 'all';
+    const statusFilter = document.getElementById('filterStatusSelect').value || 'done';
     const allCodes = getAllOrderedPlotCodes();
 
     const htmlList = [];
     allCodes.forEach(stt => {
-      const rec = getRecord(state.currentRound, stt);
+      const rec = getRecord(stt);
       const master = state.masterPlots.get(stt);
       if (statusFilter === 'done' && !rec) return;
       if (statusFilter === 'todo' && rec) return;
 
-      const textBlob = `${stt} ${master ? (master.variety || '') + ' ' + (master.xa || '') + ' ' + (master.huyen || '') : ''} ${rec ? rec.note || '' : ''}`.toLowerCase();
+      const textBlob = `${stt} ${rec ? (rec.note || '') + ' ' + (rec.x || '') : ''} ${master ? (master.variety || '') + ' ' + (master.xa || '') : ''}`.toLowerCase();
       if (searchQ && !textBlob.includes(searchQ)) return;
 
       const xDisp = rec ? rec.x : (master && master.x ? Number(master.x).toFixed(6) : '—');
@@ -1526,17 +1473,17 @@
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <span class="plot-stt-badge">${stt}</span>
               <span class="${rec ? 'status-pill-done' : 'status-pill-todo'}">
-                ${rec ? `✓ Đã khảo sát (${rec.surveyDateTime})` : `⏳ Chưa đo Đợt ${state.currentRound}`}
+                ${rec ? `✅ ĐÃ LƯU (${rec.surveyDateTime})` : `⏳ Chưa lưu`}
               </span>
-              ${master && master.xa ? `<span style="font-size:0.8rem;color:var(--text-secondary);font-weight:700;">📍 ${master.xa}</span>` : ''}
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
               <button type="button" class="btn btn-primary btn-sm" onclick="window.__kslStartPlot('${stt}')">
-                ${rec ? '✏️ Sửa / Xem' : '📝 Đo ngay'}
+                ${rec ? '✏️ Mở / Sửa lại' : '📍 Định vị & Nhập'}
               </button>
+              ${xDisp !== '—' ? `
               <a href="https://www.google.com/maps/dir/?api=1&destination=${yDisp},${xDisp}&travelmode=two-wheeler" target="_blank" rel="noopener" class="btn btn-outline btn-sm">
                 🛵 Chỉ đường
-              </a>
+              </a>` : ''}
               ${rec ? `<button type="button" class="btn btn-danger btn-sm" onclick="window.__kslDeleteRecord('${rec.id}')">🗑️</button>` : ''}
             </div>
           </div>
@@ -1552,17 +1499,29 @@
       `);
     });
 
-    container.innerHTML = htmlList.length > 0
-      ? htmlList.join('')
-      : `<div style="text-align:center;padding:24px;color:var(--text-secondary);">Không có điểm ruộng nào khớp bộ lọc.</div>`;
+    if (htmlList.length > 0) {
+      container.innerHTML = htmlList.join('');
+    } else if (statusFilter === 'done') {
+      container.innerHTML = `
+        <div style="text-align:center;padding:24px;color:var(--text-secondary);">
+          <div style="font-size:1.8rem;margin-bottom:6px;">📍</div>
+          <div style="font-weight:800;margin-bottom:8px;">Chưa có điểm khảo sát nào được lưu trong máy.</div>
+          <button type="button" class="btn btn-yellow btn-sm" onclick="document.querySelector('[data-tab=tab-survey]').click()">
+            👉 Quay lại Tab 1 để Định vị GPS &amp; Lưu điểm CT01
+          </button>
+        </div>
+      `;
+    } else {
+      container.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-secondary);">Không có điểm ruộng nào khớp bộ lọc.</div>`;
+    }
   }
 
   window.__kslDeleteRecord = function (recordId) {
     const rec = state.surveyRecords.get(recordId);
     if (!rec) return;
     showModal({
-      title: `Xóa bản ghi ${rec.stt} (Đợt ${rec.round})?`,
-      html: `<p>Bạn có chắc muốn xóa dữ liệu khảo sát của điểm <strong>${rec.stt}</strong> trong <strong>Đợt ${rec.round}</strong> không? (Danh mục tọa độ gốc Đợt 1 vẫn được giữ an toàn).</p>`,
+      title: `Xóa điểm ${rec.stt}?`,
+      html: `<p>Bạn có chắc muốn xóa dữ liệu đã lưu của điểm <strong>${rec.stt}</strong> không?</p>`,
       buttons: [
         { label: 'Hủy', className: 'btn btn-outline btn-sm' },
         {
@@ -1570,10 +1529,12 @@
           className: 'btn btn-danger btn-sm',
           onClick: async () => {
             await dbDelete('survey_records', recordId);
+            await dbDelete('master_plots', rec.stt);
             state.surveyRecords.delete(recordId);
+            state.masterPlots.delete(rec.stt);
             updateHeaderAndProgressUI();
             refreshMapMarkers();
-            showToast(`Đã xóa bản ghi ${rec.stt} (Đợt ${rec.round})`);
+            showToast(`Đã xóa điểm ${rec.stt}`);
           }
         }
       ]
@@ -1586,21 +1547,28 @@
     openLightbox(rec.photos[typeKey], null);
   };
 
-  // --- MASTER PLOT REGISTRY SYNC (EXPORT / IMPORT JSON, XLSX, GEOJSON) ---
+  // --- EXPORT / IMPORT MASTER PLOTS ---
   function exportMasterRegistryJSON() {
-    const list = Array.from(state.masterPlots.values()).sort((a, b) =>
-      a.stt.localeCompare(b.stt, undefined, { numeric: true })
-    );
+    const saved = getAllSavedRecords();
+    const list = saved.map(r => ({
+      stt: r.stt,
+      x: Number(r.x),
+      y: Number(r.y),
+      sowingDate: r.sowingDate,
+      variety: r.variety,
+      method: r.method,
+      baseNote: r.note
+    }));
     const payload = {
-      version: '2.0',
+      version: '3.0',
       exportedAt: formatNowDateTime(),
       exportedBy: state.surveyorName,
       totalPlots: list.length,
       masterPlots: list
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
-    triggerDownloadBlob(blob, 'DanhMuc_50RuongGoc.json');
-    showToast(`Đã xuất DanhMuc_50RuongGoc.json (${list.length} điểm ruộng gốc)`);
+    triggerDownloadBlob(blob, 'DanhMuc_RuongDot1.json');
+    showToast(`Đã tải xuống DanhMuc_RuongDot1.json (${list.length} điểm)`);
   }
 
   async function importMasterRegistryFile(file) {
@@ -1622,7 +1590,7 @@
               stt: normalizeStt(p.stt || p['STT (GPS)'] || `CT${idx + 1}`),
               x: Number(coords[0]),
               y: Number(coords[1]),
-              sowingDate: p.sowingDate || p['Ngày sạ/cấy'] || '15/10/2026',
+              sowingDate: p.sowingDate || p['Ngày sạ/cấy'] || '',
               variety: p.variety || 'OM5454',
               method: p.method || 'Sạ hàng',
               baseNote: p.note || p.baseNote || 'OM5454 - Sạ hàng'
@@ -1646,7 +1614,7 @@
             stt,
             x,
             y,
-            sowingDate: String(r['Ngày sạ/cấy sowing/transplanting date (if any) dd/mm/yy'] || r['sowingDate'] || '15/10/2026'),
+            sowingDate: String(r['Ngày sạ/cấy sowing/transplanting date (if any) dd/mm/yy'] || r['sowingDate'] || ''),
             variety: r['variety'] || parts[0] || 'OM5454',
             method: r['method'] || parts[1] || 'Sạ hàng',
             baseNote: noteRaw
@@ -1664,12 +1632,10 @@
           stt: normalizeStt(p.stt),
           x: Number(parseFloat(p.x).toFixed(6)),
           y: Number(parseFloat(p.y).toFixed(6)),
-          sowingDate: p.sowingDate || '15/10/2026',
+          sowingDate: p.sowingDate || '',
           variety: p.variety || 'OM5454',
           method: p.method || 'Sạ hàng',
-          baseNote: p.baseNote || `${p.variety || 'OM5454'} - ${p.method || 'Sạ hàng'}`,
-          xa: p.xa || '',
-          huyen: p.huyen || ''
+          baseNote: p.baseNote || `${p.variety || 'OM5454'} - ${p.method || 'Sạ hàng'}`
         };
         await dbPut('master_plots', cleanPlot);
         state.masterPlots.set(cleanPlot.stt, cleanPlot);
@@ -1677,32 +1643,21 @@
 
       updateHeaderAndProgressUI();
       selectPlotIntoForm(importedPlots[0].stt, { panMap: true });
-      fitAllMasterPlotsOnMap();
-      showToast(`✅ Đã nạp & đồng bộ thành công ${importedPlots.length} điểm ruộng gốc!`);
+      fitAllSavedPlotsOnMap();
+      showToast(`✅ Đã nạp ${importedPlots.length} điểm tọa độ vào danh sách!`);
     } catch (err) {
-      showToast('Lỗi đọc file danh mục: ' + err.message, 'error');
+      showToast('Lỗi đọc file: ' + err.message, 'error');
     }
   }
 
-  // Load built-in preset (including 5-plot demo that populates Round 1 records and switches to Round 2 if desired)
   async function loadPresetDataset(presetKey) {
     if (!window.DBSCL_PRESETS || !window.DBSCL_PRESETS[presetKey]) return;
     const list = window.DBSCL_PRESETS[presetKey];
 
-    state.masterPlots.clear();
-    const tx = state.db.transaction('master_plots', 'readwrite');
-    tx.objectStore('master_plots').clear();
-    await new Promise(res => { tx.oncomplete = res; });
-
-    for (const item of list) {
-      await dbPut('master_plots', item);
-      state.masterPlots.set(item.stt, item);
-    }
-
-    // If user clicked the 5-plot demo preset, also create 5 sample Round 1 survey records with stamped photos so they can immediately test Round 1 -> Round 2 transition!
-    if (presetKey === 'demo_5_ct') {
-      for (let i = 0; i < list.length; i++) {
-        const p = list[i];
+    for (const p of list) {
+      await dbPut('master_plots', p);
+      state.masterPlots.set(p.stt, p);
+      if (presetKey === 'demo_5_ct') {
         const rec = {
           id: `R1_${p.stt}`,
           round: 1,
@@ -1721,41 +1676,25 @@
           sowingDate: p.sowingDate,
           variety: p.variety,
           method: p.method,
-          extraNote: 'Lúa đẻ nhánh khỏe',
-          note: `${p.variety} - ${p.method} (Lúa đẻ nhánh khỏe)`,
+          extraNote: '',
+          note: `${p.variety} - ${p.method}`,
           photos: { TongQuan: null, Can1: null, Can2: null },
-          gpsActual: { x: p.x, y: p.y, accuracy: 6, distanceToMasterM: 4, heading: 90 },
+          gpsActual: { x: p.x, y: p.y, accuracy: 6, heading: 90 },
           savedAt: new Date().toISOString()
         };
         await dbPut('survey_records', rec);
         state.surveyRecords.set(rec.id, rec);
       }
-      state.currentRound = 2;
-      localStorage.setItem('ksl_currentRound', '2');
-      showToast('🧪 Đã tạo 5 điểm gốc Đợt 1 và chuyển sang Đợt 2 để bạn thử nghiệm đi đo lặp lại!');
-    } else {
-      showToast(`✅ Đã nạp bộ 50 điểm ruộng gốc (${presetKey.replace('_50', '').toUpperCase()})!`);
     }
 
     updateHeaderAndProgressUI();
     selectPlotIntoForm(list[0].stt, { panMap: true });
-    fitAllMasterPlotsOnMap();
+    fitAllSavedPlotsOnMap();
+    showToast(`✅ Đã nạp dữ liệu mẫu (${list.length} điểm)!`);
   }
 
   // --- EXPORT EXCEL, CSV, GEOJSON, KML & ZALO ZIP PACKAGE ---
-  function getRecordsToExport() {
-    const scope = document.getElementById('exportScopeSelect').value || 'current';
-    if (scope === 'all') {
-      return Array.from(state.surveyRecords.values()).sort((a, b) => {
-        if (a.round !== b.round) return a.round - b.round;
-        return a.stt.localeCompare(b.stt, undefined, { numeric: true });
-      });
-    }
-    return getRecordsForRound(state.currentRound);
-  }
-
   function buildStandardSheetRows(records) {
-    // Exact 9 standard columns + Round & Surveyor metadata + 3 photo filenames
     return records.map(r => {
       const das = computeDAS(r.sowingDate, r.surveyDateTime);
       return {
@@ -1768,7 +1707,7 @@
         'Chiều cao mực nước (cm, trung bình 3 lần đo)': r.waterRegime === '1' && r.waterLevelAvg !== '' ? Number(r.waterLevelAvg) : '',
         'Ngày sạ/cấy sowing/transplanting date (if any) dd/mm/yy': r.sowingDate || '',
         'Ghi chú - Note (giống lúa và phương pháp sạ/cấy)': r.note || '',
-        'Đợt khảo sát': Number(r.round),
+        'Đợt khảo sát': 1,
         'Người khảo sát': r.surveyorName || '',
         'Mã người KS': r.surveyorCode || '',
         'Số ngày sau sạ (NSS/DAS)': das !== null ? das : '',
@@ -1787,15 +1726,7 @@
         ? surveyRows
         : [{ 'STT (GPS)': 'Chưa có bản ghi', 'X': '', 'Y': '' }]
     );
-    XLSX.utils.book_append_sheet(wb, wsSurvey, 'DuLieuKhaoSatLua');
-
-    // Also include Master Plots sheet (50 ruộng gốc)
-    const masterList = Array.from(state.masterPlots.values()).sort((a, b) =>
-      a.stt.localeCompare(b.stt, undefined, { numeric: true })
-    );
-    const wsMaster = XLSX.utils.json_to_sheet(masterList);
-    XLSX.utils.book_append_sheet(wb, wsMaster, 'DanhMuc_50RuongGoc');
-
+    XLSX.utils.book_append_sheet(wb, wsSurvey, 'KhaoSatLua_Dot1');
     return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
   }
 
@@ -1815,7 +1746,7 @@
       },
       properties: {
         stt: r.stt,
-        round: r.round,
+        round: 1,
         surveyorName: r.surveyorName,
         surveyDateTime: r.surveyDateTime,
         growthStage: Number(r.growthStage),
@@ -1836,10 +1767,9 @@
       const stObj = RICE_STAGES.find(s => s.code === Number(r.growthStage));
       return `
     <Placemark>
-      <name>${r.stt} (Đợt ${r.round})</name>
+      <name>${r.stt}</name>
       <description><![CDATA[
         <b>Mã ruộng:</b> ${r.stt}<br/>
-        <b>Đợt khảo sát:</b> Đợt ${r.round}<br/>
         <b>Người khảo sát:</b> ${r.surveyorName}<br/>
         <b>Ngày giờ:</b> ${r.surveyDateTime}<br/>
         <b>Giai đoạn lúa:</b> Mã ${r.growthStage} (${stObj ? stObj.vi : ''})<br/>
@@ -1856,18 +1786,16 @@
     return `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
-    <name>KhaoSatLua_DBSCL_Dot${state.currentRound}</name>
+    <name>KhaoSatLua_Dot1</name>
     ${placemarks}
   </Document>
 </kml>`;
   }
 
   function getBaseExportPrefix(records) {
-    const scope = document.getElementById('exportScopeSelect').value || 'current';
-    const roundTag = scope === 'all' ? 'CaVu9Dot' : `Dot${state.currentRound}`;
     const sCode = getSurveyorCode(state.surveyorName);
     const ts = formatFileTimestamp();
-    return `KhaoSatLua_${roundTag}_${sCode}_${ts}_${records.length}diem`;
+    return `KhaoSatLua_Dot1_${sCode}_${ts}_${records.length}diem`;
   }
 
   function dataUrlToUint8Array(dataUrl) {
@@ -1882,34 +1810,36 @@
   }
 
   async function buildZipPackageBlob() {
-    const records = getRecordsToExport();
+    const records = getAllSavedRecords();
     const prefix = getBaseExportPrefix(records);
     const zip = new JSZip();
 
-    // 1. Excel .xlsx & .csv
     const xlsxBuf = generateExcelWorkbookBuffer(records);
     zip.file(`${prefix}.xlsx`, xlsxBuf);
 
     const csvStr = generateCSVWithBOM(records);
     zip.file(`${prefix}.csv`, csvStr);
 
-    // 2. Master Plot Registry JSON
-    const masterList = Array.from(state.masterPlots.values()).sort((a, b) =>
-      a.stt.localeCompare(b.stt, undefined, { numeric: true })
-    );
-    zip.file('DanhMuc_50RuongGoc.json', JSON.stringify({
-      version: '2.0',
+    const masterList = records.map(r => ({
+      stt: r.stt,
+      x: Number(r.x),
+      y: Number(r.y),
+      sowingDate: r.sowingDate,
+      variety: r.variety,
+      method: r.method,
+      baseNote: r.note
+    }));
+    zip.file('DanhMuc_RuongDot1.json', JSON.stringify({
+      version: '3.0',
       exportedAt: formatNowDateTime(),
       exportedBy: state.surveyorName,
       totalPlots: masterList.length,
       masterPlots: masterList
     }, null, 2));
 
-    // 3. GIS .geojson & .kml
     zip.file(`${prefix}.geojson`, generateGeoJSONString(records));
     zip.file(`${prefix}.kml`, generateKMLString(records));
 
-    // 4. Stamped Code Photos folder (Anh_Co_Code/) & Optional Raw Photos folder
     const folderCoded = zip.folder('Anh_Co_Code');
     const includeRaw = document.getElementById('chkSaveRawPhotos').checked;
     const folderRaw = includeRaw ? zip.folder('Anh_Goc_Sach_AI') : null;
@@ -1919,7 +1849,7 @@
       ['TongQuan', 'Can1', 'Can2'].forEach(tk => {
         const p = r.photos[tk];
         if (p && p.stampedDataUrl) {
-          const fName = p.fileName || `Dot${r.round}_${r.stt}_${r.surveyorCode}_${tk}.jpg`;
+          const fName = p.fileName || `Dot1_${r.stt}_${r.surveyorCode}_${tk}.jpg`;
           folderCoded.file(fName, dataUrlToUint8Array(p.stampedDataUrl));
           if (includeRaw && folderRaw && p.rawDataUrl) {
             folderRaw.file(fName.replace('.jpg', '_RAW.jpg'), dataUrlToUint8Array(p.rawDataUrl));
@@ -1946,7 +1876,7 @@
   }
 
   function updateExportPreviewUI() {
-    const records = getRecordsToExport();
+    const records = getAllSavedRecords();
     const prefix = getBaseExportPrefix(records);
     let photoCount = 0;
     records.forEach(r => {
@@ -1964,26 +1894,21 @@
           📁 Tên gói nén: ${prefix}.zip
         </div>
         <ul style="padding-left:18px;line-height:1.55;color:var(--text-secondary);">
-          <li>📊 <strong>${prefix}.xlsx</strong> &amp; <strong>.csv</strong> (${records.length} điểm khảo sát, chuẩn 9 cột gốc)</li>
-          <li>🗂️ <strong>DanhMuc_50RuongGoc.json</strong> (${state.masterPlots.size} điểm ruộng gốc đồng bộ Đợt 2–9)</li>
+          <li>📊 <strong>${prefix}.xlsx</strong> &amp; <strong>.csv</strong> (${records.length} điểm đã lưu, chuẩn 9 cột gốc)</li>
+          <li>🗂️ <strong>DanhMuc_RuongDot1.json</strong> (${records.length} điểm ruộng Đợt 1)</li>
           <li>🌍 <strong>${prefix}.geojson</strong> &amp; <strong>.kml</strong> (Mở trực tiếp trên Google Earth / QGIS)</li>
           <li>🖼️ Thư mục <strong>Anh_Co_Code/</strong> (${photoCount} ảnh JPEG đã đóng dấu mã Code)</li>
         </ul>
       `;
     }
 
-    // Build Zalo Quick Text Report
-    const roundRecords = getRecordsForRound(state.currentRound);
-    const doneStts = roundRecords.map(r => r.stt).join(', ');
-    const allCodes = getAllOrderedPlotCodes();
-    const todoStts = allCodes.filter(c => !getRecord(state.currentRound, c));
+    const doneStts = records.map(r => r.stt).join(', ');
     const reportText = [
-      `🌾 [BÁO CÁO KHẢO SÁT LÚA THỰC ĐỊA - ĐỢT ${state.currentRound}/9]`,
+      `🌾 [BÁO CÁO KHẢO SÁT LÚA THỰC ĐỊA - ĐỢT 1]`,
       `👤 Người khảo sát: ${state.surveyorName} (Mã: ${getSurveyorCode(state.surveyorName)})`,
       `🕒 Thời gian báo cáo: ${formatNowDateTime()}`,
-      `✅ Tiến độ Đợt ${state.currentRound}: Đã đo ${roundRecords.length}/${TOTAL_TARGET_PLOTS} điểm ruộng (Còn lại ${todoStts.length} điểm)`,
-      `📍 Các điểm đã đo (${roundRecords.length}): ${doneStts || 'Chưa có'}`,
-      `⏳ Các điểm còn lại (${todoStts.length}): ${todoStts.slice(0, 15).join(', ')}${todoStts.length > 15 ? '...' : ''}`,
+      `✅ Tổng số điểm đã lưu: ${records.length} điểm ruộng`,
+      `📍 Danh sách mã điểm (${records.length}): ${doneStts || 'Chưa có'}`,
       `📦 File đính kèm: ${prefix}.zip`
     ].join('\n');
 
@@ -2048,7 +1973,11 @@
       setTimeout(() => {
         state.fullMap.invalidateSize();
         refreshMapMarkers();
+        fitAllSavedPlotsOnMap();
       }, 120);
+    }
+    if (tabId === 'tab-list') {
+      renderPlotListTab();
     }
     if (tabId === 'tab-export') {
       updateExportPreviewUI();
@@ -2057,12 +1986,10 @@
 
   // --- INITIALIZE EVENT LISTENERS ---
   function bindEvents() {
-    // Bottom navigation tabs
     document.querySelectorAll('.bottom-nav .nav-tab').forEach(btn => {
       btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
 
-    // Online / Offline indicator
     const updateNetBadge = () => {
       const b = document.getElementById('netStatusBadge');
       if (navigator.onLine) {
@@ -2077,7 +2004,6 @@
     window.addEventListener('offline', updateNetBadge);
     updateNetBadge();
 
-    // Theme toggle
     if (state.themeLight) document.body.classList.add('theme-light');
     document.getElementById('btnToggleTheme').addEventListener('click', () => {
       state.themeLight = !state.themeLight;
@@ -2085,7 +2011,6 @@
       localStorage.setItem('ksl_themeLight', String(state.themeLight));
     });
 
-    // QR Code modal
     document.getElementById('btnShowQR').addEventListener('click', openQRModal);
     document.getElementById('btnCloseQRModal').addEventListener('click', () => {
       document.getElementById('qrModal').classList.remove('open');
@@ -2096,45 +2021,6 @@
     document.getElementById('btnCopyQRUrl').addEventListener('click', () => {
       const url = document.getElementById('qrUrlInput').value;
       navigator.clipboard.writeText(url).then(() => showToast('Đã copy đường link mở trên điện thoại!'));
-    });
-
-    // Quick Demo button in Header
-    document.getElementById('btnQuickDemoHeader').addEventListener('click', () => {
-      showModal({
-        title: '⚡ Nạp Nhanh Dữ Liệu Mẫu Thực Địa ĐBSCL',
-        html: `
-          <p style="margin-bottom:10px;">Chọn kịch bản dữ liệu mẫu để kiểm thử nhanh toàn bộ quy trình 9 đợt × 50 điểm ruộng cố định:</p>
-          <div style="display:flex;flex-direction:column;gap:8px;">
-            <button type="button" class="btn btn-yellow btn-sm" id="modalBtnDemo5">
-              🧪 Kịch bản 1: Tạo 5 điểm Đợt 1 + Chuyển sang Đợt 2 đi đo lại (Khuyên dùng kiểm thử)
-            </button>
-            <button type="button" class="btn btn-primary btn-sm" id="modalBtnDT50">
-              🌾 Kịch bản 2: Nạp 50 điểm ruộng gốc Đồng Tháp (CT01–CT50)
-            </button>
-            <button type="button" class="btn btn-outline btn-sm" id="modalBtnCT50">
-              🌾 Kịch bản 3: Nạp 50 điểm ruộng gốc Cần Thơ - Cờ Đỏ (CT01–CT50)
-            </button>
-          </div>
-        `,
-        buttons: [{ label: 'Đóng', className: 'btn btn-outline btn-sm' }]
-      });
-      setTimeout(() => {
-        const b1 = document.getElementById('modalBtnDemo5');
-        const b2 = document.getElementById('modalBtnDT50');
-        const b3 = document.getElementById('modalBtnCT50');
-        if (b1) b1.onclick = () => { document.getElementById('customModal').classList.remove('open'); loadPresetDataset('demo_5_ct'); };
-        if (b2) b2.onclick = () => { document.getElementById('customModal').classList.remove('open'); loadPresetDataset('dong_thap_50'); };
-        if (b3) b3.onclick = () => { document.getElementById('customModal').classList.remove('open'); loadPresetDataset('can_tho_50'); };
-      }, 50);
-    });
-
-    // Round selector & Surveyor input
-    document.getElementById('roundSelect').addEventListener('change', (e) => {
-      state.currentRound = parseInt(e.target.value, 10);
-      localStorage.setItem('ksl_currentRound', String(state.currentRound));
-      updateHeaderAndProgressUI();
-      selectPlotIntoForm(state.currentPlotStt, { panMap: false });
-      showToast(`Đã chuyển sang Đợt ${state.currentRound}`);
     });
 
     document.getElementById('surveyorInput').addEventListener('input', (e) => {
@@ -2154,36 +2040,34 @@
       selectPlotIntoForm(e.target.value, { panMap: true });
     });
 
-    document.getElementById('btnNextUnvisited').addEventListener('click', jumpToNextUnvisitedPlot);
+    // All "Qua điểm mới" buttons
+    document.getElementById('btnHeaderNewPoint').addEventListener('click', handleGoToNewPoint);
+    document.getElementById('btnNextNewPoint').addEventListener('click', handleGoToNewPoint);
+    document.getElementById('btnGoNextPointBottom').addEventListener('click', handleGoToNewPoint);
+    document.getElementById('btnAddNewPointFromList').addEventListener('click', () => {
+      switchTab('tab-survey');
+      handleGoToNewPoint();
+    });
 
     // GPS & Map buttons in Form
     document.getElementById('btnGetGPS').addEventListener('click', () => requestCurrentGPS(true));
-    document.getElementById('btnRefreshNearest').addEventListener('click', () => requestCurrentGPS(false));
 
     document.getElementById('btnOpenGMapsForm').addEventListener('click', () => {
       const x = parseFloat(document.getElementById('coordXInput').value);
       const y = parseFloat(document.getElementById('coordYInput').value);
       if (!isNaN(x) && !isNaN(y)) {
         window.open(`https://www.google.com/maps/dir/?api=1&destination=${y.toFixed(6)},${x.toFixed(6)}&travelmode=two-wheeler`, '_blank');
+      } else {
+        showToast('Chưa có tọa độ X, Y để mở Google Maps!', 'warn');
       }
     });
 
-    document.getElementById('btnToggleCoordLock').addEventListener('click', () => {
-      state.coordUnlockedInRepeatRound = !state.coordUnlockedInRepeatRound;
-      const xInput = document.getElementById('coordXInput');
-      const yInput = document.getElementById('coordYInput');
-      const btn = document.getElementById('btnToggleCoordLock');
-      xInput.readOnly = !state.coordUnlockedInRepeatRound;
-      yInput.readOnly = !state.coordUnlockedInRepeatRound;
-      btn.textContent = state.coordUnlockedInRepeatRound
-        ? '🔓 Đã mở khóa sửa tọa độ gốc (Bấm để khóa lại)'
-        : '🔒 Đang khóa tọa độ gốc Đợt 1 (Bấm để mở khóa)';
-      refreshMapMarkers();
-    });
-
     ['coordXInput', 'coordYInput'].forEach(id => {
+      document.getElementById(id).addEventListener('input', () => {
+        markFormDirty();
+      });
       document.getElementById(id).addEventListener('change', () => {
-        updateDistanceCheckBanner();
+        markFormDirty();
         reStampExistingPhotos();
         syncMapsToCurrentPlot(true);
       });
@@ -2192,35 +2076,40 @@
     // Date/time & Sowing date
     document.getElementById('btnNowDateTime').addEventListener('click', () => {
       document.getElementById('surveyDateTimeInput').value = formatNowDateTime();
+      markFormDirty();
       updateDASAndStageHints();
       reStampExistingPhotos();
     });
 
     document.getElementById('surveyDateTimeInput').addEventListener('input', () => {
+      markFormDirty();
       updateDASAndStageHints();
       reStampExistingPhotos();
     });
 
     document.getElementById('sowingDateInput').addEventListener('input', () => {
+      markFormDirty();
       updateDASAndStageHints();
     });
 
     document.getElementById('sowingDatePicker').addEventListener('change', (e) => {
-      const val = e.target.value; // yyyy-mm-dd
+      const val = e.target.value;
       if (val) {
         const [yyyy, mm, dd] = val.split('-');
         document.getElementById('sowingDateInput').value = `${dd}/${mm}/${yyyy}`;
+        markFormDirty();
         updateDASAndStageHints();
       }
     });
 
     // Water regime & 3 measurements
     document.querySelectorAll('#waterRegimeGrid .water-btn').forEach(btn => {
-      btn.addEventListener('click', () => setWaterRegime(btn.dataset.water));
+      btn.addEventListener('click', () => setWaterRegime(btn.dataset.water, true));
     });
 
     ['waterM1', 'waterM2', 'waterM3'].forEach(id => {
       document.getElementById(id).addEventListener('input', () => {
+        markFormDirty();
         recalcWaterAverage();
         reStampExistingPhotos();
       });
@@ -2229,10 +2118,16 @@
     // Variety, Method & Extra Note
     ['varietyInput', 'methodInput', 'roundExtraNoteInput'].forEach(id => {
       document.getElementById(id).addEventListener('input', () => {
+        markFormDirty();
         syncVarietyMethodChips();
         updateCombinedNotePreview();
         reStampExistingPhotos();
       });
+    });
+
+    document.getElementById('finalNotePreview').addEventListener('input', () => {
+      markFormDirty();
+      reStampExistingPhotos();
     });
 
     // 3 Photo capture inputs & Lightbox
@@ -2269,13 +2164,14 @@
     document.getElementById('btnDeletePhotoLightbox').addEventListener('click', () => {
       if (state.lightboxActiveType) {
         state.currentPhotos[state.lightboxActiveType] = null;
+        markFormDirty();
         updatePhotoCardsUI();
       }
       document.getElementById('lightboxModal').classList.remove('open');
     });
 
-    // Save & Form Actions
-    document.getElementById('btnSaveRecord').addEventListener('click', () => handleSaveSurveyRecord(false));
+    // Save Button (saves and shows confirmation dialog with option to stay or go to next point)
+    document.getElementById('btnSaveRecordStay').addEventListener('click', () => handleSaveSurveyRecord({ silentPopup: false }));
 
     document.getElementById('btnResetForm').addEventListener('click', () => {
       state.currentPhotos = { TongQuan: null, Can1: null, Can2: null };
@@ -2285,7 +2181,8 @@
       document.getElementById('waterM3').value = '';
       recalcWaterAverage();
       updatePhotoCardsUI();
-      showToast('Đã làm mới các trường nhập của điểm hiện tại');
+      markFormDirty();
+      showToast('Đã xóa trắng ảnh và số đo nước của điểm hiện tại');
     });
 
     document.getElementById('btnJumpToMap').addEventListener('click', () => switchTab('tab-map'));
@@ -2295,24 +2192,14 @@
       requestCurrentGPS(false);
       setTimeout(() => {
         if (state.userGPS.x && state.userGPS.y && state.fullMap) {
-          state.fullMap.setView([state.userGPS.y, state.userGPS.x], 16);
+          state.fullMap.setView([state.userGPS.y, state.userGPS.x], 17);
         }
       }, 600);
     });
 
-    document.getElementById('btnFitAllPlots').addEventListener('click', fitAllMasterPlotsOnMap);
+    document.getElementById('btnFitAllPlots').addEventListener('click', fitAllSavedPlotsOnMap);
 
-    document.querySelectorAll('[data-map-filter]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        state.mapFilter = btn.getAttribute('data-map-filter');
-        document.querySelectorAll('[data-map-filter]').forEach(b => {
-          b.classList.toggle('selected', b.getAttribute('data-map-filter') === state.mapFilter);
-        });
-        refreshMapMarkers();
-      });
-    });
-
-    // Tab 3: Master Registry Sync & List controls
+    // Tab 3: List controls
     document.getElementById('btnExportMasterJSON').addEventListener('click', exportMasterRegistryJSON);
     document.getElementById('btnDownloadMasterJSON2').addEventListener('click', exportMasterRegistryJSON);
 
@@ -2330,28 +2217,30 @@
     document.getElementById('filterStatusSelect').addEventListener('change', renderPlotListTab);
 
     document.getElementById('btnClearCurrentRound').addEventListener('click', () => {
-      const round = state.currentRound;
-      const list = getRecordsForRound(round);
+      const list = getAllSavedRecords();
       if (list.length === 0) {
-        showToast(`Đợt ${round} hiện chưa có bản ghi nào để xóa.`, 'warn');
+        showToast('Hiện chưa có điểm nào được lưu trong máy.', 'warn');
         return;
       }
       showModal({
-        title: `🗑️ Xóa toàn bộ ${list.length} bản ghi của Đợt ${round}?`,
-        html: `<p>Danh mục 50 điểm ruộng gốc vẫn được giữ nguyên. Bạn có chắc chắn muốn xóa ${list.length} bản ghi khảo sát của <strong>Đợt ${round}</strong> không?</p>`,
+        title: `🗑️ Xóa toàn bộ ${list.length} điểm đã lưu?`,
+        html: `<p>Bạn có chắc chắn muốn xóa toàn bộ ${list.length} điểm khảo sát Đợt 1 trong máy không?</p>`,
         buttons: [
           { label: 'Hủy', className: 'btn btn-outline btn-sm' },
           {
-            label: `Xóa Đợt ${round}`,
+            label: 'Xóa tất cả',
             className: 'btn btn-danger btn-sm',
             onClick: async () => {
               for (const r of list) {
                 await dbDelete('survey_records', r.id);
-                state.surveyRecords.delete(r.id);
+                await dbDelete('master_plots', r.stt);
               }
+              state.surveyRecords.clear();
+              state.masterPlots.clear();
+              selectPlotIntoForm('CT01', { panMap: false });
               updateHeaderAndProgressUI();
               refreshMapMarkers();
-              showToast(`Đã xóa dữ liệu khảo sát của Đợt ${round}`);
+              showToast('Đã xóa toàn bộ dữ liệu cũ');
             }
           }
         ]
@@ -2359,9 +2248,12 @@
     });
 
     // Tab 4: Export & Share via Zalo
-    document.getElementById('exportScopeSelect').addEventListener('change', updateExportPreviewUI);
-
     document.getElementById('btnShareZaloZip').addEventListener('click', async () => {
+      const records = getAllSavedRecords();
+      if (records.length === 0) {
+        showToast('Bạn chưa lưu điểm khảo sát nào! Hãy bấm "Lưu điểm" ở Tab 1 trước khi xuất gói ZIP.', 'warn');
+        return;
+      }
       try {
         showToast('⏳ Đang đóng gói file .ZIP (Excel + GIS + Ảnh có Code)...');
         const { blob, fileName } = await buildZipPackageBlob();
@@ -2369,7 +2261,7 @@
 
         if (navigator.canShare && navigator.canShare({ files: [zipFile] })) {
           await navigator.share({
-            title: `Khảo sát lúa Đợt ${state.currentRound} - ${state.surveyorName}`,
+            title: `Khảo sát lúa Đợt 1 - ${state.surveyorName}`,
             text: document.getElementById('zaloReportTextarea').value,
             files: [zipFile]
           });
@@ -2386,6 +2278,11 @@
     });
 
     document.getElementById('btnDownloadZipOnly').addEventListener('click', async () => {
+      const records = getAllSavedRecords();
+      if (records.length === 0) {
+        showToast('Chưa có điểm nào được lưu để xuất .ZIP!', 'warn');
+        return;
+      }
       showToast('⏳ Đang tạo gói nén .ZIP...');
       const { blob, fileName } = await buildZipPackageBlob();
       triggerDownloadBlob(blob, fileName);
@@ -2393,7 +2290,7 @@
     });
 
     document.getElementById('btnDownloadExcelOnly').addEventListener('click', () => {
-      const records = getRecordsToExport();
+      const records = getAllSavedRecords();
       const prefix = getBaseExportPrefix(records);
       const buf = generateExcelWorkbookBuffer(records);
       triggerDownloadBlob(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `${prefix}.xlsx`);
@@ -2401,7 +2298,7 @@
     });
 
     document.getElementById('btnDownloadGeoJSONOnly').addEventListener('click', () => {
-      const records = getRecordsToExport();
+      const records = getAllSavedRecords();
       const prefix = getBaseExportPrefix(records);
       triggerDownloadBlob(new Blob([generateGeoJSONString(records)], { type: 'application/geo+json;charset=utf-8' }), `${prefix}.geojson`);
       triggerDownloadBlob(new Blob([generateKMLString(records)], { type: 'application/vnd.google-earth.kml+xml;charset=utf-8' }), `${prefix}.kml`);
@@ -2411,15 +2308,17 @@
     document.getElementById('btnCopyZaloReport').addEventListener('click', () => {
       const txt = document.getElementById('zaloReportTextarea').value;
       navigator.clipboard.writeText(txt).then(() => {
-        showToast('📋 Đã copy báo cáo tiến độ! Hãy dán vào nhóm Zalo.');
+        showToast('📋 Đã copy báo cáo! Hãy dán vào nhóm Zalo.');
       });
     });
   }
 
-  // --- REGISTER SERVICE WORKER FOR OFFLINE PWA ---
+  // --- REGISTER SERVICE WORKER (BUMP CACHE VERSION) ---
   function registerServiceWorker() {
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-      navigator.serviceWorker.register('./sw.js').catch(() => {});
+      navigator.serviceWorker.register('./sw.js?v=3.0').then(reg => {
+        if (reg && reg.update) reg.update();
+      }).catch(() => {});
     }
   }
 
@@ -2433,8 +2332,7 @@
     initMaps();
     initCompassListener();
     updateHeaderAndProgressUI();
-    selectPlotIntoForm('CT01', { panMap: true });
-    fitAllMasterPlotsOnMap();
+    selectPlotIntoForm('CT01', { panMap: true, autoGetGPS: true });
     registerServiceWorker();
   }
 

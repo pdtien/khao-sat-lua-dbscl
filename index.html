@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0f5132" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Khảo Sát Lúa Thực Địa ĐBSCL • 9 Đợt × 50 Điểm Cố Định</title>
+  <title>Khảo Sát Lúa Thực Địa Đợt 1 • Định Vị GPS &amp; 3 Ảnh Code</title>
   <link rel="manifest" href="./manifest.json" />
   <link rel="icon" type="image/png" href="./icons/icon-192.png" />
   <link rel="apple-touch-icon" href="./icons/icon-192.png" />
@@ -17,21 +17,18 @@
   <!-- Toast Container -->
   <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
-  <!-- Top Sticky Header & Session Bar (Phần A.1) -->
+  <!-- Top Sticky Header & Session Bar (Chỉ tập trung Đợt 1) -->
   <header class="app-header">
     <div class="header-top">
       <div class="brand-group">
         <img src="./icons/icon-192.png" alt="Logo" class="brand-logo" />
         <div>
-          <div class="brand-title">KHẢO SÁT LÚA THỰC ĐỊA</div>
-          <div class="brand-subtitle">9 Đợt × 50 Điểm Ruộng Cố Định • GPS &amp; 3 Ảnh Code</div>
+          <div class="brand-title">KHẢO SÁT LÚA THỰC ĐỊA — ĐỢT 1</div>
+          <div class="brand-subtitle">Định Vị GPS Chuẩn • Số Liệu 9 Cột • 3 Ảnh Có Code</div>
         </div>
       </div>
       <div class="header-actions">
         <span id="netStatusBadge" class="net-badge net-online">ONLINE</span>
-        <button type="button" id="btnQuickDemoHeader" class="icon-btn" title="Nạp dữ liệu mẫu thử nghiệm">
-          ⚡ Mẫu thử
-        </button>
         <button type="button" id="btnShowQR" class="icon-btn" title="Mã QR mở trên điện thoại">
           📱 Mã QR
         </button>
@@ -45,41 +42,39 @@
       <div class="session-inner">
         <div class="session-controls">
           <div class="session-field">
-            <label for="roundSelect" class="session-label">
-              <span>📅 Đợt khảo sát hiện tại</span>
-              <span id="roundModeTag" class="code-pill">SETUP GỐC</span>
-            </label>
-            <select id="roundSelect" class="session-select">
-              <option value="1">Đợt 1 (Setup 50 ruộng gốc)</option>
-              <option value="2">Đợt 2 (Khảo sát lặp lại)</option>
-              <option value="3">Đợt 3 (Khảo sát lặp lại)</option>
-              <option value="4">Đợt 4 (Khảo sát lặp lại)</option>
-              <option value="5">Đợt 5 (Khảo sát lặp lại)</option>
-              <option value="6">Đợt 6 (Khảo sát lặp lại)</option>
-              <option value="7">Đợt 7 (Khảo sát lặp lại)</option>
-              <option value="8">Đợt 8 (Khảo sát lặp lại)</option>
-              <option value="9">Đợt 9 (Khảo sát lặp lại - Cuối vụ)</option>
-            </select>
-          </div>
-          <div class="session-field">
             <label for="surveyorInput" class="session-label">
-              <span>👤 Tên người khảo sát (Bắt buộc)</span>
-              <span>Mã file: <strong id="surveyorCodeBadge" class="code-pill">ChuaNhap</strong></span>
+              <span>👤 Tên người khảo sát (Đợt 1)</span>
+              <span>Mã file: <strong id="surveyorCodeBadge" class="code-pill">MinhNV</strong></span>
             </label>
             <input
               type="text"
               id="surveyorInput"
               class="session-input"
-              placeholder="VD: Nguyễn Văn Minh..."
+              placeholder="Nhập tên người khảo sát (VD: Nguyễn Văn Minh)..."
               autocomplete="off"
             />
+          </div>
+
+          <div class="session-field">
+            <label class="session-label">
+              <span>📍 Điểm đang mở &amp; Trạng thái lưu</span>
+              <span id="headerPointStatusBadge" class="code-pill" style="background:#ea580c;color:#fff;">⏳ CHƯA LƯU</span>
+            </label>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <div id="headerCurrentPointBox" style="flex:1;background:#06120b;border:2px solid #facc15;border-radius:10px;padding:7px 10px;font-weight:900;font-size:0.98rem;color:#facc15;">
+                Điểm: CT01 (Đợt 1)
+              </div>
+              <button type="button" id="btnHeaderNewPoint" class="btn btn-yellow btn-sm" style="padding:9px 12px;white-space:nowrap;">
+                ➕ Qua điểm mới
+              </button>
+            </div>
           </div>
         </div>
 
         <div class="progress-wrap">
           <div class="progress-info">
-            <span id="progressText">Tiến độ Đợt 1: Đã đo 0 / 50 điểm ruộng (Còn lại 50 điểm)</span>
-            <span id="masterRegistryBadge" style="color:#86efac;font-size:0.78rem;">Ruộng gốc: 0/50</span>
+            <span id="progressText">Tiến độ Đợt 1: Đã lưu 0 / 50 điểm ruộng</span>
+            <span id="lastSavedTimeBadge" style="color:#86efac;font-size:0.78rem;">Chưa có điểm nào lưu</span>
           </div>
           <div class="progress-track">
             <div id="progressBarFill" class="progress-fill" style="width: 0%"></div>
@@ -92,51 +87,24 @@
   <!-- Main Content Container -->
   <main class="main-container">
     <!-- ==========================================
-         TAB 1: NHẬP KHẢO SÁT (PHẦN B)
+         TAB 1: ĐỊNH VỊ GPS & NHẬP SỐ LIỆU ĐỢT 1
          ========================================== -->
     <section id="tab-survey" class="tab-panel active">
-      <!-- Nearest Plot Smart Suggestion Banner (Shown in Rounds 2-9 or when Master Plots exist) -->
-      <div id="nearestBanner" class="nearest-banner">
-        <div class="nearest-header">
-          <span id="nearestBannerTitle">🧭 Gợi ý điểm ruộng gần vị trí bạn nhất</span>
-          <button type="button" id="btnRefreshNearest" class="btn btn-sm btn-yellow" style="padding:4px 9px;font-size:0.76rem;">
-            📍 Cập nhật GPS
-          </button>
-        </div>
-        <div id="nearestChipsContainer" class="nearest-chips">
-          <!-- Populated dynamically by app.js -->
-        </div>
-      </div>
 
-      <!-- CỘT 1, 2, 3: STT (GPS) & TỌA ĐỘ X, Y + BẢN ĐỒ VỆ TINH NHúng -->
+      <!-- CỘT 1, 2, 3: ĐỊNH VỊ GPS & BẢN ĐỒ VỆ TINH CHỐT TỌA ĐỘ ĐỢT 1 -->
       <div class="card card-highlight">
         <div class="card-header">
           <div class="card-title">
-            <span>📍 Điểm Ruộng &amp; Tọa Độ Vệ Tinh Chuẩn</span>
+            <span>🛰️ Định Vị GPS &amp; Chốt Tọa Độ Ruộng (Đợt 1)</span>
           </div>
-          <span class="col-badge">Cột 1 • Cột 2 • Cột 3</span>
+          <span id="formPointStatusPill" class="status-pill-todo">⏳ ĐIỂM MỚI (CHƯA LƯU)</span>
         </div>
 
-        <!-- Round mode instruction banner -->
-        <div id="roundInstructionBox" style="background:rgba(250,204,21,0.12);border:1.5px solid #facc15;border-radius:10px;padding:9px 11px;margin-bottom:12px;font-size:0.84rem;font-weight:700;color:#fef08a;">
-          🌱 <strong>ĐỢT 1 (Setup 50 điểm ruộng gốc):</strong> Bấm "Lấy vị trí GPS hiện tại", sau đó kéo ghim hoặc chạm vào chính giữa thửa ruộng trên ảnh vệ tinh để chốt tọa độ gốc X, Y cho cả vụ.
-        </div>
-
-        <div class="form-grid-2 form-grid-2-mobile-stack">
-          <div class="form-group">
-            <label for="plotSelectQuick" class="form-label">
-              Chọn nhanh từ Danh mục 50 ruộng
-              <span class="form-sublabel">Đỏ/Cam = Chưa đo • Xanh ✓ = Đã đo đợt này</span>
-            </label>
-            <select id="plotSelectQuick" class="form-select">
-              <!-- Populated with CT01..CT50 -->
-            </select>
-          </div>
-
-          <div class="form-group">
+        <div class="form-grid-2 form-grid-2-mobile-stack" style="margin-bottom:10px;">
+          <div class="form-group" style="margin-bottom:0;">
             <label for="sttInput" class="form-label">
-              Cột 1 — STT (GPS) / Mã điểm ruộng
-              <span class="form-sublabel">Chuẩn CT01 đến CT50 (cho phép nhập mã bổ sung)</span>
+              Cột 1 — Mã điểm ruộng / STT (GPS)
+              <span class="form-sublabel">Nhập mã điểm (VD: CT01..CT50) hoặc bấm "Qua điểm mới"</span>
             </label>
             <div style="display:flex;gap:6px;">
               <input
@@ -145,75 +113,84 @@
                 class="form-input"
                 value="CT01"
                 placeholder="VD: CT01"
-                style="text-transform:uppercase;"
+                style="text-transform:uppercase;font-size:1.15rem;color:#facc15;"
               />
-              <button type="button" id="btnNextUnvisited" class="btn btn-outline btn-sm" title="Chuyển tới điểm chưa đo tiếp theo">
-                ⏭️ Kế tiếp
+              <button type="button" id="btnNextNewPoint" class="btn btn-yellow btn-sm" style="white-space:nowrap;">
+                ➕ Qua điểm mới
               </button>
             </div>
           </div>
-        </div>
 
-        <!-- GPS Action & Mini Satellite Map -->
-        <div class="gps-status-strip">
-          <div>
-            <span id="gpsStatusText">🛰️ GPS: Sẵn sàng định vị thực địa</span>
-            <span id="compassHeadingText" style="margin-left:8px;color:#38bdf8;"></span>
-          </div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <button type="button" id="btnGetGPS" class="btn btn-yellow btn-sm">
-              📍 Lấy vị trí GPS hiện tại
-            </button>
-            <button type="button" id="btnOpenGMapsForm" class="btn btn-outline btn-sm">
-              🛵 Chỉ đường Google Maps
-            </button>
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="plotSelectQuick" class="form-label">
+              Chọn lại điểm đã lưu hoặc chuyển nhanh (CT01–CT50)
+              <span class="form-sublabel">🟢 Đã lưu ✓ (bấm vào để xem/sửa lại) • 🟠 Chưa lưu</span>
+            </label>
+            <select id="plotSelectQuick" class="form-select">
+              <!-- Populated with CT01..CT50 -->
+            </select>
           </div>
         </div>
 
-        <div id="miniMap" class="mini-map-box"></div>
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.78rem;color:var(--text-secondary);margin-bottom:10px;flex-wrap:wrap;gap:6px;">
-          <span id="miniMapHint">💡 Mẹo: Chạm trực tiếp vào giữa ruộng trên ảnh vệ tinh hoặc kéo ghim để đặt tọa độ.</span>
-          <button type="button" id="btnToggleCoordLock" class="btn btn-outline btn-sm" style="display:none;padding:4px 8px;font-size:0.75rem;">
-            🔒 Đang khóa tọa độ gốc Đợt 1 (Bấm để mở khóa)
+        <!-- Nút lớn lấy GPS thực địa -->
+        <div style="background:rgba(250,204,21,0.12);border:2px solid #facc15;border-radius:12px;padding:10px;margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <div>
+              <div id="gpsStatusText" style="font-weight:800;font-size:0.9rem;color:#fef08a;">
+                🛰️ Bấm nút bên phải để lấy tọa độ GPS nơi bạn đang đứng
+              </div>
+              <div id="compassHeadingText" style="font-size:0.78rem;color:#38bdf8;font-weight:700;"></div>
+            </div>
+            <button type="button" id="btnGetGPS" class="btn btn-yellow" style="padding:10px 16px;font-size:0.95rem;">
+              📍 ĐỊNH VỊ GPS TẠI ĐÂY
+            </button>
+          </div>
+        </div>
+
+        <!-- Bản đồ vệ tinh nhúng trực tiếp để kéo ghim vào giữa ruộng -->
+        <div id="miniMap" class="mini-map-box" style="height:260px;"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.8rem;color:#86efac;font-weight:700;margin-bottom:10px;flex-wrap:wrap;gap:6px;">
+          <span>👆 Chạm trực tiếp vào giữa thửa ruộng trên ảnh vệ tinh hoặc kéo ghim để chỉnh tọa độ chính xác.</span>
+          <button type="button" id="btnOpenGMapsForm" class="btn btn-outline btn-sm" style="padding:4px 10px;font-size:0.76rem;">
+            🛵 Mở Google Maps
           </button>
         </div>
 
-        <!-- Cột 2 (X - Kinh độ) & Cột 3 (Y - Vĩ độ) -->
+        <!-- Cột 2 (X - Kinh độ) & Cột 3 (Y - Vĩ độ) luôn cho phép sửa -->
         <div class="form-grid-2">
-          <div class="form-group">
+          <div class="form-group" style="margin-bottom:0;">
             <label for="coordXInput" class="form-label">
               Cột 2 — X (Kinh độ / Longitude)
-              <span class="form-sublabel">Hệ tọa độ WGS84 (VD: 105.741040)</span>
+              <span class="form-sublabel">Cho phép nhập/sửa tay (VD: 105.741040)</span>
             </label>
             <input
               type="number"
               step="0.000001"
               id="coordXInput"
               class="form-input"
-              placeholder="105.xxxxxx"
+              placeholder="Bấm Định vị GPS hoặc chạm bản đồ"
             />
           </div>
-          <div class="form-group">
+          <div class="form-group" style="margin-bottom:0;">
             <label for="coordYInput" class="form-label">
               Cột 3 — Y (Vĩ độ / Latitude)
-              <span class="form-sublabel">Hệ tọa độ WGS84 (VD: 10.546230)</span>
+              <span class="form-sublabel">Cho phép nhập/sửa tay (VD: 10.546230)</span>
             </label>
             <input
               type="number"
               step="0.000001"
               id="coordYInput"
               class="form-input"
-              placeholder="10.xxxxxx"
+              placeholder="Bấm Định vị GPS hoặc chạm bản đồ"
             />
           </div>
         </div>
-        <div id="distanceCheckBanner" style="display:none;margin-top:8px;padding:8px 10px;border-radius:8px;font-size:0.83rem;font-weight:700;"></div>
       </div>
 
-      <!-- CỘT 4 & CỘT 8: NGÀY GIỜ KHẢO SÁT & NGÀY SẠ/CẤY (TÍNH NSS/DAS) -->
+      <!-- CỘT 4 & CỘT 8: NGÀY GIỜ KHẢO SÁT & NGÀY SẠ/CẤY -->
       <div class="card">
         <div class="card-header">
-          <div class="card-title">🕒 Thời Gian Khảo Sát &amp; Ngày Sạ/Cấy</div>
+          <div class="card-title">🕒 Ngày Giờ Khảo Sát &amp; Ngày Sạ/Cấy</div>
           <span class="col-badge">Cột 4 • Cột 8</span>
         </div>
 
@@ -221,7 +198,7 @@
           <div class="form-group">
             <label for="surveyDateTimeInput" class="form-label">
               Cột 4 — Ngày và giờ khảo sát
-              <span class="form-sublabel">Định dạng chuẩn: dd/mm/yyyy hh:mm</span>
+              <span class="form-sublabel">Định dạng: dd/mm/yyyy hh:mm</span>
             </label>
             <div style="display:flex;gap:6px;">
               <input
@@ -239,14 +216,14 @@
           <div class="form-group">
             <label for="sowingDateInput" class="form-label">
               Cột 8 — Ngày sạ/cấy (dd/mm/yyyy)
-              <span id="sowingInheritBadge" class="form-sublabel">Thiết lập ở Đợt 1 • Tự kế thừa sang Đợt 2–9</span>
+              <span class="form-sublabel">Nhập ngày xuống giống của ruộng (nếu có)</span>
             </label>
             <div style="display:flex;gap:6px;align-items:center;">
               <input
                 type="text"
                 id="sowingDateInput"
                 class="form-input"
-                placeholder="VD: 15/10/2026"
+                placeholder="VD: 25/10/2026"
               />
               <input
                 type="date"
@@ -259,7 +236,7 @@
         </div>
 
         <div id="dasHintBanner" style="margin-top:8px;padding:9px 12px;border-radius:10px;background:rgba(56,189,248,0.12);border:1.5px solid #38bdf8;font-size:0.86rem;font-weight:700;color:#e0f2fe;">
-          🌱 Nhập Ngày sạ/cấy để ứng dụng tự tính tuổi lúa (Số ngày sau sạ - NSS/DAS) và gợi ý giai đoạn sinh trưởng.
+          🌱 Nhập Ngày sạ/cấy để tự động tính số ngày sau sạ (NSS / DAS) và gợi ý giai đoạn sinh trưởng.
         </div>
       </div>
 
@@ -269,8 +246,6 @@
           <div class="card-title">🌾 Giai Đoạn Sinh Trưởng Của Lúa (1–12)</div>
           <span class="col-badge">Cột 5 (Xuất mã 1–12)</span>
         </div>
-
-        <div id="prevStageComparisonBanner" style="display:none;margin-bottom:10px;padding:8px 11px;border-radius:9px;background:rgba(250,204,21,0.14);border:1.5px solid #facc15;font-size:0.84rem;font-weight:700;color:#fef08a;"></div>
 
         <div id="stagesGrid" class="stages-grid">
           <!-- 12 bilingual stage buttons rendered by JS -->
@@ -315,7 +290,7 @@
         <div id="waterLevelSection" style="margin-top:14px;padding-top:12px;border-top:1.5px dashed var(--border-color);">
           <label class="form-label">
             Cột 7 — Chiều cao mực nước (cm, trung bình cộng 3 lần đo)
-            <span class="form-sublabel">Nhập 3 vị trí đo đại diện trong ruộng → Tự tính trung bình làm tròn 1 chữ số thập phân</span>
+            <span class="form-sublabel">Nhập 3 lần đo trong ruộng → Tự tính trung bình làm tròn 1 chữ số thập phân</span>
           </label>
           <div class="form-grid-3" style="margin-bottom:10px;">
             <div>
@@ -345,7 +320,7 @@
         </div>
       </div>
 
-      <!-- CỘT 9: GHI CHÚ - NOTE (GIỐNG LÚA & PHƯƠNG PHÁP SẠ/CẤY + GHI CHÚ ĐỢT) -->
+      <!-- CỘT 9: GHI CHÚ - NOTE (GIỐNG LÚA & PHƯƠNG PHÁP SẠ/CẤY + GHI CHÚ) -->
       <div class="card">
         <div class="card-header">
           <div class="card-title">📝 Giống Lúa, Phương Pháp Sạ/Cấy &amp; Ghi Chú</div>
@@ -353,12 +328,8 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">
-            1. Chọn nhanh Giống lúa phổ biến ĐBSCL (Kế thừa từ Đợt 1)
-          </label>
-          <div id="varietyChips" class="chip-group">
-            <!-- Populated by JS: OM5454, OM18, Đài Thơm 8, OM380, ST25, ST24, IR50404, Jasmine 85, DS1, RVT -->
-          </div>
+          <label class="form-label">1. Chọn nhanh Giống lúa phổ biến ĐBSCL</label>
+          <div id="varietyChips" class="chip-group"></div>
           <input
             type="text"
             id="varietyInput"
@@ -369,38 +340,32 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">
-            2. Phương pháp xuống giống (Sạ / Cấy)
-          </label>
-          <div id="methodChips" class="chip-group">
-            <!-- Populated by JS: Cấy, Sạ lan, Sạ hàng, Sạ cụm, Drone -->
-          </div>
+          <label class="form-label">2. Phương pháp xuống giống (Sạ / Cấy)</label>
+          <div id="methodChips" class="chip-group"></div>
           <input
             type="text"
             id="methodInput"
             class="form-input"
             style="margin-top:8px;"
-            placeholder="Phương pháp (VD: Sạ hàng, Cấy...)"
+            placeholder="Phương pháp (VD: Sạ hàng, Sạ lan, Cấy...)"
           />
         </div>
 
         <div class="form-group">
           <label for="roundExtraNoteInput" class="form-label">
-            3. Ghi chú phát sinh riêng của Đợt này (nếu có)
-            <span class="form-sublabel">VD: Đổ ngã nhẹ, rầy nâu, đang tháo nước chuẩn bị gặt, đã thu hoạch...</span>
+            3. Ghi chú bổ sung tại ruộng (nếu có)
+            <span class="form-sublabel">VD: Lúa lên đều, ốc bươu vàng, phèn nhẹ, gần kênh...</span>
           </label>
           <input
             type="text"
             id="roundExtraNoteInput"
             class="form-input"
-            placeholder="Không bắt buộc (nhập thêm tình trạng sâu bệnh, đổ ngã...)"
+            placeholder="Nhập thêm ghi chú thực địa (không bắt buộc)..."
           />
         </div>
 
         <div class="form-group">
-          <label for="finalNotePreview" class="form-label">
-            Chuỗi xuất chuẩn vào Cột 9 (Ghi chú - Note):
-          </label>
+          <label for="finalNotePreview" class="form-label">Chuỗi xuất vào Cột 9 (Ghi chú - Note):</label>
           <input
             type="text"
             id="finalNotePreview"
@@ -410,17 +375,17 @@
         </div>
       </div>
 
-      <!-- PHẦN B.3: CỤM CHỤP 3 ẢNH THỰC ĐỊA CÓ ĐÓNG DẤU MÃ CODE ("HÌNH CÓ CODE") -->
+      <!-- CỤM CHỤP 3 ẢNH THỰC ĐỊA CÓ ĐÓNG DẤU MÃ CODE ("HÌNH CÓ CODE") -->
       <div class="card card-highlight">
         <div class="card-header">
           <div class="card-title">📸 Cụm Chụp 3 Ảnh Thực Địa Có Đóng Dấu Mã Code</div>
-          <button type="button" id="btnGenerate3DemoPhotos" class="btn btn-yellow btn-sm">
-            🖼️ Tạo nhanh 3 ảnh mẫu
+          <button type="button" id="btnGenerate3DemoPhotos" class="btn btn-outline btn-sm">
+            🖼️ Tạo 3 ảnh mẫu test
           </button>
         </div>
 
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;font-size:0.84rem;color:var(--text-secondary);">
-          <span>Hệ thống tự động nén JPEG (≤1280px) và đóng dấu nhãn Code (Đợt, Mã ruộng, Người KS, Tọa độ X/Y, Ngày giờ, GĐ, Nước) lên ảnh.</span>
+          <span>Ảnh chụp tự động nén JPEG (≤1280px) và đóng dấu nhãn Code (Mã điểm, Người KS, Tọa độ X/Y, Ngày giờ, GĐ, Nước).</span>
           <label style="display:inline-flex;align-items:center;gap:6px;font-weight:800;color:#86efac;cursor:pointer;">
             <input type="checkbox" id="chkSaveRawPhotos" style="width:18px;height:18px;" />
             <span>Lưu kèm thư mục ảnh gốc sạch cho AI</span>
@@ -505,128 +470,81 @@
         </div>
       </div>
 
-      <!-- NÚT LƯU ĐIỂM KHẢO SÁT -->
-      <div class="card" style="background:linear-gradient(135deg,#0f5132 0%,#0b2e1d 100%);border-color:#4ade80;">
-        <button type="button" id="btnSaveRecord" class="btn btn-yellow btn-lg btn-block">
-          💾 LƯU ĐIỂM KHẢO SÁT (<span id="btnSavePlotLabel">CT01 - ĐỢT 1</span>)
-        </button>
+      <!-- KHU VỰC LƯU ĐIỂM RÕ RÀNG + TRẠNG THÁI ĐÃ LƯU + NÚT BẤM QUA ĐIỂM MỚI -->
+      <div id="saveActionCard" class="card" style="background:linear-gradient(135deg,#0f5132 0%,#0b2e1d 100%);border:2.5px solid #facc15;">
+        <!-- Hộp báo trạng thái đã lưu hay chưa ngay trước mắt người dùng -->
+        <div id="saveStatusBanner" style="background:rgba(234,88,12,0.25);border:2px solid #fb923c;border-radius:12px;padding:12px;margin-bottom:12px;text-align:center;font-weight:900;font-size:1rem;color:#ffedd5;">
+          ⏳ TRẠNG THÁI ĐIỂM <span class="lbl-current-stt">CT01</span>: CHƯA LƯU VÀO MÁY
+        </div>
+
+        <div class="form-grid-2 form-grid-2-mobile-stack" style="gap:10px;">
+          <!-- Nút 1: Lưu điểm hiện tại và giữ nguyên màn hình để kiểm tra/xác nhận -->
+          <button type="button" id="btnSaveRecordStay" class="btn btn-yellow btn-lg btn-block" style="font-size:1.05rem;">
+            💾 LƯU ĐIỂM <span class="lbl-current-stt">CT01</span>
+          </button>
+
+          <!-- Nút 2: Qua điểm tiếp theo (CT02...) -->
+          <button type="button" id="btnGoNextPointBottom" class="btn btn-primary btn-lg btn-block" style="font-size:1.05rem;background:#22c55e;color:#052e16;border-color:#bbf7d0;">
+            ➕ BẤM QUA ĐIỂM MỚI (<span id="lblNextStt">CT02</span>) ➡️
+          </button>
+        </div>
+
         <div style="display:flex;justify-content:space-between;gap:8px;margin-top:10px;">
           <button type="button" id="btnResetForm" class="btn btn-outline btn-sm" style="flex:1;">
-            🧹 Làm mới biểu mẫu
+            🧹 Xóa trắng form điểm này
           </button>
           <button type="button" id="btnJumpToMap" class="btn btn-outline btn-sm" style="flex:1;">
-            🗺️ Xem trên bản đồ 50 điểm
+            🗺️ Xem các điểm đã lưu trên Bản đồ
           </button>
         </div>
       </div>
     </section>
 
     <!-- ==========================================
-         TAB 2: BẢN ĐỒ 50 ĐIỂM RUỘNG (PHẦN A.3)
+         TAB 2: BẢN ĐỒ VỆ TINH CÁC ĐIỂM ĐỢT 1
          ========================================== -->
     <section id="tab-map" class="tab-panel">
       <div class="card">
         <div class="card-header">
-          <div class="card-title">🗺️ Bản Đồ Vệ Tinh 50 Điểm Ruộng Cố Định</div>
+          <div class="card-title">🗺️ Bản Đồ Vệ Tinh Các Điểm Đợt 1</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
             <button type="button" id="btnLocateMeMap" class="btn btn-yellow btn-sm">
               📍 Vị trí của tôi
             </button>
             <button type="button" id="btnFitAllPlots" class="btn btn-outline btn-sm">
-              🎯 Toàn bộ 50 ruộng
+              🎯 Xem tất cả điểm
             </button>
           </div>
         </div>
 
-        <!-- Map Legend & Filter -->
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <button type="button" class="chip-btn selected" data-map-filter="all">
-              Tất cả (<span id="mapCountAll">0</span>)
-            </button>
-            <button type="button" class="chip-btn" data-map-filter="todo" style="border-color:#ea580c;">
-              🟠 Chưa đo (<span id="mapCountTodo">0</span>)
-            </button>
-            <button type="button" class="chip-btn" data-map-filter="done" style="border-color:#22c55e;">
-              🟢 Đã đo ✓ (<span id="mapCountDone">0</span>)
-            </button>
+            <span class="chip-btn selected">🟢 Điểm đã lưu Đợt 1: <strong id="mapCountDone">0</strong> điểm</span>
           </div>
-          <div style="font-size:0.8rem;color:var(--text-secondary);font-weight:700;">
-            Chạm vào ghim ruộng để mở Chỉ đường Google Maps hoặc Khảo sát ngay
+          <div style="font-size:0.82rem;color:var(--text-secondary);font-weight:700;">
+            Chạm vào ghim trên bản đồ để xem/sửa lại điểm đó hoặc mở chỉ đường
           </div>
         </div>
 
         <div id="fullMap" class="full-map-box"></div>
-
-        <!-- Nearest Unvisited Plots Drawer under Full Map -->
-        <div style="margin-top:12px;">
-          <div style="font-weight:800;font-size:0.9rem;color:#fde047;margin-bottom:6px;">
-            🛵 Danh sách điểm ruộng chưa đo gần vị trí hiện tại nhất:
-          </div>
-          <div id="mapNearestList" class="nearest-chips"></div>
-        </div>
       </div>
     </section>
 
     <!-- ==========================================
-         TAB 3: DANH SÁCH & TIẾN ĐỘ ĐỢT (PHẦN A.2 & B.1)
+         TAB 3: DANH SÁCH ĐIỂM ĐÃ LƯU (ĐỢT 1)
          ========================================== -->
     <section id="tab-list" class="tab-panel">
-      <!-- Đồng bộ Danh mục 50 điểm ruộng gốc giữa các máy qua Zalo -->
-      <div class="card card-highlight">
+      <div class="card">
         <div class="card-header">
-          <div class="card-title">🔄 Đồng Bộ "Danh Mục 50 Điểm Ruộng Gốc" (Đợt 1 → Đợt 2–9)</div>
-          <span class="col-badge">Offline Zalo Sync</span>
-        </div>
-        <p style="font-size:0.86rem;color:var(--text-secondary);margin-bottom:12px;">
-          Sau khi đi Đợt 1 (Setup 50 ruộng gốc), xuất file <code>DanhMuc_50RuongGoc.json</code> gửi qua Zalo cho cả đoàn. Các máy khác bấm <strong>"Nạp danh sách 50 ruộng gốc"</strong> để đồng bộ 100% tọa độ X, Y, Ngày sạ/cấy, Giống lúa cho Đợt 2–9 (hỗ trợ gộp nhiều máy).
-        </p>
-
-        <div class="form-grid-2 form-grid-2-mobile-stack" style="margin-bottom:10px;">
-          <button type="button" id="btnExportMasterJSON" class="btn btn-primary">
-            📤 Xuất DanhMuc_50RuongGoc.json
-          </button>
-          <label class="btn btn-yellow" style="cursor:pointer;">
-            📥 Nạp Danh sách 50 ruộng gốc (.json / .xlsx / .geojson)
-            <input type="file" id="inputImportMaster" accept=".json,.xlsx,.xls,.csv,.geojson" style="display:none;" />
-          </label>
-        </div>
-
-        <div style="padding-top:10px;border-top:1px dashed var(--border-color);display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;">
-          <span style="font-size:0.84rem;font-weight:800;color:#fde047;">⚡ Nạp nhanh bộ tọa độ thực tế ĐBSCL (Thử nghiệm / Khởi tạo):</span>
+          <div class="card-title">📋 Danh Sách Điểm Khảo Sát Đợt 1 (<span id="listDoneCount">0</span> điểm đã lưu)</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <button type="button" class="btn btn-outline btn-sm" data-preset="demo_5_ct">
-              🧪 5 điểm mẫu (Test nhanh Đợt 1→2)
+            <button type="button" id="btnAddNewPointFromList" class="btn btn-yellow btn-sm">
+              ➕ Thêm điểm mới
             </button>
-            <button type="button" class="btn btn-outline btn-sm" data-preset="dong_thap_50">
-              🌾 50 điểm Đồng Tháp
-            </button>
-            <button type="button" class="btn btn-outline btn-sm" data-preset="can_tho_50">
-              🌾 50 điểm Cần Thơ
-            </button>
-            <button type="button" class="btn btn-outline btn-sm" data-preset="tra_vinh_50">
-              🌾 50 điểm Trà Vinh
+            <button type="button" id="btnClearCurrentRound" class="btn btn-danger btn-sm">
+              🗑️ Xóa tất cả
             </button>
           </div>
-        </div>
-      </div>
-
-      <!-- Tiến độ tổng quan 9 Đợt -->
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">📊 Ma Trận Tiến Độ 9 Đợt Trong Vụ</div>
-          <span style="font-size:0.8rem;color:var(--text-secondary);">Bấm vào ô Đợt để chuyển nhanh</span>
-        </div>
-        <div id="roundsMatrixContainer" class="rounds-matrix"></div>
-      </div>
-
-      <!-- Danh sách chi tiết các điểm ruộng trong Đợt đang chọn -->
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">📋 Danh Sách Điểm Ruộng — <span id="listRoundTitle">Đợt 1</span></div>
-          <button type="button" id="btnClearCurrentRound" class="btn btn-danger btn-sm">
-            🗑️ Xóa dữ liệu đợt này
-          </button>
         </div>
 
         <div class="form-grid-2 form-grid-2-mobile-stack" style="margin-bottom:12px;">
@@ -634,37 +552,49 @@
             type="text"
             id="searchPlotInput"
             class="form-input"
-            placeholder="🔍 Tìm theo mã CT01..CT50, giống lúa, xã..."
+            placeholder="🔍 Tìm theo mã CT01, giống lúa, ghi chú..."
           />
           <select id="filterStatusSelect" class="form-select">
-            <option value="all">Hiển thị: Tất cả điểm ruộng</option>
-            <option value="done">🟢 Chỉ hiện điểm ĐÃ ĐO trong đợt này</option>
-            <option value="todo">🟠 Chỉ hiện điểm CHƯA ĐO trong đợt này</option>
+            <option value="done">🟢 Hiển thị các điểm ĐÃ LƯU</option>
+            <option value="all">Hiển thị toàn bộ danh sách CT01–CT50</option>
+            <option value="todo">🟠 Chỉ hiện các mã CT01–CT50 chưa lưu</option>
           </select>
         </div>
 
         <div id="plotListContainer" class="plot-list-grid"></div>
       </div>
+
+      <!-- Tùy chọn nạp file tọa độ dự kiến hoặc dữ liệu mẫu nếu cần -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🔄 Công Cụ Nạp / Xuất Danh Mục Tọa Độ Đợt 1</div>
+        </div>
+        <div class="form-grid-2 form-grid-2-mobile-stack" style="margin-bottom:10px;">
+          <button type="button" id="btnExportMasterJSON" class="btn btn-primary btn-sm">
+            📤 Xuất file DanhMuc_RuongDot1.json
+          </button>
+          <label class="btn btn-outline btn-sm" style="cursor:pointer;">
+            📥 Nạp file tọa độ có sẵn (.json / .xlsx / .geojson)
+            <input type="file" id="inputImportMaster" accept=".json,.xlsx,.xls,.csv,.geojson" style="display:none;" />
+          </label>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+          <span style="font-size:0.8rem;color:var(--text-secondary);">Nạp thử điểm mẫu (nếu muốn test):</span>
+          <button type="button" class="btn btn-outline btn-sm" data-preset="demo_5_ct">🧪 Nạp 5 điểm mẫu</button>
+          <button type="button" class="btn btn-outline btn-sm" data-preset="dong_thap_50">🌾 50 điểm mẫu Đồng Tháp</button>
+          <button type="button" class="btn btn-outline btn-sm" data-preset="can_tho_50">🌾 50 điểm mẫu Cần Thơ</button>
+        </div>
+      </div>
     </section>
 
     <!-- ==========================================
-         TAB 4: XUẤT & GỬI ZALO (PHẦN C.2)
+         TAB 4: XUẤT GÓI .ZIP & GỬI QUA ZALO
          ========================================== -->
     <section id="tab-export" class="tab-panel">
       <div class="card card-highlight">
         <div class="card-header">
-          <div class="card-title">📦 Đóng Gói Dữ Liệu (.ZIP) &amp; Chia Sẻ Qua Zalo</div>
+          <div class="card-title">📦 Đóng Gói Dữ Liệu Đợt 1 (.ZIP) &amp; Gửi Qua Zalo</div>
           <span class="col-badge">Excel • CSV • GIS • Ảnh Code</span>
-        </div>
-
-        <div class="form-group">
-          <label for="exportScopeSelect" class="form-label">
-            Chọn phạm vi đóng gói dữ liệu:
-          </label>
-          <select id="exportScopeSelect" class="form-select">
-            <option value="current">Theo Đợt đang chọn (Mặc định khuyến nghị khi nộp từng đợt)</option>
-            <option value="all">Tổng hợp toàn bộ cả vụ (Tất cả các đợt từ Đợt 1 – Đợt 9)</option>
-          </select>
         </div>
 
         <div id="exportPackagePreview" style="background:var(--bg-input);border:1.5px solid var(--border-color);border-radius:12px;padding:12px;margin-bottom:14px;font-size:0.86rem;">
@@ -672,7 +602,7 @@
         </div>
 
         <button type="button" id="btnShareZaloZip" class="btn btn-zalo btn-lg btn-block" style="margin-bottom:10px;">
-          🚀 GỬI GÓI .ZIP QUA ZALO (Web Share / Tải .ZIP)
+          🚀 GỬI GÓI .ZIP ĐỢT 1 QUA ZALO (Web Share / Tải .ZIP)
         </button>
 
         <div class="form-grid-2 form-grid-2-mobile-stack">
@@ -686,7 +616,7 @@
             🌍 Tải bản đồ .GeoJSON &amp; .KML
           </button>
           <button type="button" id="btnDownloadMasterJSON2" class="btn btn-outline">
-            🗂️ Tải DanhMuc_50RuongGoc.json
+            🗂️ Tải DanhMuc_RuongDot1.json
           </button>
         </div>
       </div>
@@ -694,7 +624,7 @@
       <!-- Báo cáo nhanh dán vào nhóm Zalo -->
       <div class="card">
         <div class="card-header">
-          <div class="card-title">💬 Tin Nhắn Báo Cáo Nhanh Dán Vào Nhóm Zalo</div>
+          <div class="card-title">💬 Tin Nhắn Báo Cáo Đợt 1 Dán Vào Nhóm Zalo</div>
           <button type="button" id="btnCopyZaloReport" class="btn btn-yellow btn-sm">
             📋 Copy báo cáo Zalo
           </button>
@@ -713,17 +643,16 @@
   <!-- Bottom 4-Tab Navigation Bar -->
   <nav class="bottom-nav" aria-label="Điều hướng chính">
     <button type="button" class="nav-tab active" data-tab="tab-survey">
-      <span class="nav-tab-icon">📝</span>
-      <span>1. Nhập Khảo Sát</span>
+      <span class="nav-tab-icon">📍</span>
+      <span>1. Định Vị &amp; Nhập</span>
     </button>
     <button type="button" class="nav-tab" data-tab="tab-map">
       <span class="nav-tab-icon">🛰️</span>
-      <span>2. Bản Đồ 50 Điểm</span>
-      <span id="navBadgeTodo" class="nav-badge" style="display:none;">0</span>
+      <span>2. Bản Đồ Đợt 1</span>
     </button>
     <button type="button" class="nav-tab" data-tab="tab-list">
       <span class="nav-tab-icon">📋</span>
-      <span>3. Tiến Độ &amp; DS</span>
+      <span>3. Đã Lưu (<span id="navBadgeSavedCount">0</span>)</span>
     </button>
     <button type="button" class="nav-tab" data-tab="tab-export">
       <span class="nav-tab-icon">📤</span>
@@ -731,7 +660,7 @@
     </button>
   </nav>
 
-  <!-- Custom Modal Dialog (Replaces native alert/confirm/prompt) -->
+  <!-- Custom Modal Dialog -->
   <div id="customModal" class="modal-backdrop" role="dialog" aria-modal="true">
     <div class="modal-dialog">
       <div id="customModalTitle" class="modal-title">Thông báo</div>
@@ -761,7 +690,7 @@
     <div class="modal-dialog" style="text-align:center;">
       <div class="modal-title">📱 Quét Mã QR Mở Trên Điện Thoại (Zalo / Camera)</div>
       <p style="font-size:0.86rem;color:var(--text-secondary);margin-bottom:8px;">
-        Dùng ứng dụng <strong>Zalo</strong> hoặc <strong>Camera</strong> trên điện thoại quét mã QR dưới đây để mở trực tiếp Web App (HTTPS hỗ trợ đầy đủ GPS &amp; Camera ngoài đồng):
+        Dùng <strong>Zalo</strong> hoặc <strong>Camera</strong> trên điện thoại quét mã QR dưới đây để mở trực tiếp Web App (HTTPS hỗ trợ đầy đủ GPS &amp; Camera ngoài đồng):
       </p>
       <div id="qrCodeContainer" class="qr-box"></div>
       <div style="margin:10px 0;">

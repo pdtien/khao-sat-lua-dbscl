@@ -1,4 +1,4 @@
-const CACHE_NAME = 'khao-sat-lua-pwa-v2.1';
+const CACHE_NAME = 'khao-sat-lua-pwa-v3.0';
 const TILE_CACHE_NAME = 'khao-sat-lua-tiles-v1';
 
 const STATIC_ASSETS = [
@@ -14,8 +14,7 @@ const STATIC_ASSETS = [
   './vendor/jszip.min.js',
   './vendor/xlsx.full.min.js',
   './vendor/qrcode.min.js',
-  './data/presets_dbscl.js',
-  './data/DanhMuc_50RuongGoc_Mau_DBSCL.json'
+  './data/presets_dbscl.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -46,7 +45,7 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(req.url);
 
-  // Cache map tiles (Esri, OpenStreetMap, Carto) dynamically for field offline reuse
+  // Cache map tiles dynamically for offline field reuse
   if (
     url.hostname.includes('arcgisonline.com') ||
     url.hostname.includes('openstreetmap.org') ||
@@ -70,19 +69,16 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Stale-while-revalidate for static assets
+  // Network-first for HTML/JS/CSS so updates appear immediately when online, fallback to cache when offline
   event.respondWith(
-    caches.match(req).then((cachedResp) => {
-      const fetchPromise = fetch(req)
-        .then((netResp) => {
-          if (netResp && netResp.status === 200 && url.origin === self.location.origin) {
-            const respClone = netResp.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(req, respClone));
-          }
-          return netResp;
-        })
-        .catch(() => cachedResp);
-      return cachedResp || fetchPromise;
-    })
+    fetch(req)
+      .then((netResp) => {
+        if (netResp && netResp.status === 200 && url.origin === self.location.origin) {
+          const respClone = netResp.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, respClone));
+        }
+        return netResp;
+      })
+      .catch(() => caches.match(req))
   );
 });
