@@ -1,7 +1,7 @@
 /* ==========================================================================
    ỨNG DỤNG KHẢO SÁT LÚA THỰC ĐỊA ĐBSCL — ĐỢT 1
-   Định Vị GPS Chuẩn • Upload Thẳng Lên Google Drive (KS-LUA-3-TINH) Có Báo %
-   Khi Nào Xong • Song Song Đóng Gói .ZIP Gửi Zalo
+   Lưu Nhanh Ngoài Đồng (Có Báo Đã Lưu Rõ Ràng + Qua Điểm Mới)
+   & Xuất Gói .ZIP Sau Khi Đi (Có Báo % Tiến Trình Đóng Gói 0-100% Đưa Lên Drive / Zalo)
    ========================================================================== */
 
 (function () {
@@ -12,7 +12,6 @@
   const DB_VERSION = 1;
   const TOTAL_TARGET_PLOTS = 50;
   const CURRENT_ROUND = 1;
-  const DRIVE_FOLDER_ID = '1N74C2GaXeEFN5C8oAbNU3amc0Y6fPASL';
   const DRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/1N74C2GaXeEFN5C8oAbNU3amc0Y6fPASL?usp=sharing';
 
   const RICE_STAGES = [
@@ -45,18 +44,10 @@
     Can2: { label: 'CẬN 2', titleVi: 'Ảnh Cận 2', suffix: 'Can2' }
   };
 
-  // Auto-read ?gas= webhook URL from query string if shared via QR code
-  const urlParams = new URLSearchParams(window.location.search);
-  const gasFromUrl = urlParams.get('gas');
-  if (gasFromUrl && gasFromUrl.startsWith('https://script.google.com/')) {
-    localStorage.setItem('ksl_driveWebhookUrl', gasFromUrl.trim());
-  }
-
   // --- APPLICATION STATE ---
   const state = {
     db: null,
     surveyorName: localStorage.getItem('ksl_surveyorName') || 'Nguyễn Văn Minh',
-    driveWebhookUrl: localStorage.getItem('ksl_driveWebhookUrl') || '',
     saveRawPhotos: localStorage.getItem('ksl_saveRawPhotos') === 'true',
     themeLight: localStorage.getItem('ksl_themeLight') === 'true',
     masterPlots: new Map(),
@@ -211,10 +202,6 @@
     return 12;
   }
 
-  function sleep(ms) {
-    return new Promise(res => setTimeout(res, ms));
-  }
-
   // --- TOAST & CUSTOM MODAL ---
   function showToast(message, type = 'success', duration = 3600) {
     const container = document.getElementById('toastContainer');
@@ -337,7 +324,7 @@
     return Array.from(codes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   }
 
-  // --- CLEAR VISUAL SAVE & UPLOAD STATUS UPDATER ---
+  // --- CLEAR VISUAL SAVE STATUS UPDATER ---
   function updateCurrentPointSaveStatusUI() {
     const stt = normalizeStt(document.getElementById('sttInput').value);
     const savedRec = getRecord(stt);
@@ -359,31 +346,23 @@
 
     if (savedRec && !state.isCurrentFormDirty) {
       const timeStr = formatShortTime(savedRec.savedAt);
-      const isUploaded = !!savedRec.uploadedToDrive;
-      const driveTimeStr = savedRec.uploadedAt ? formatShortTime(savedRec.uploadedAt) : '';
-
       if (headerBadge) {
-        headerBadge.textContent = isUploaded ? `☁️ ĐÃ LÊN DRIVE (${driveTimeStr})` : `✅ ĐÃ LƯU MÁY (${timeStr})`;
-        headerBadge.style.background = isUploaded ? '#0284c7' : '#22c55e';
-        headerBadge.style.color = '#ffffff';
+        headerBadge.textContent = `✅ ĐÃ LƯU (${timeStr})`;
+        headerBadge.style.background = '#22c55e';
+        headerBadge.style.color = '#052e16';
       }
       if (formPill) {
         formPill.className = 'status-pill-done';
-        formPill.style.background = isUploaded ? '#0284c7' : '#15803d';
-        formPill.textContent = isUploaded
-          ? `☁️ ĐÃ UPLOAD LÊN GOOGLE DRIVE (Lúc ${driveTimeStr})`
-          : `✅ ĐÃ LƯU VÀO MÁY (Lúc ${timeStr} • Có thể sửa lại)`;
+        formPill.textContent = `✅ ĐÃ LƯU VÀO MÁY (Lúc ${timeStr} • Có thể sửa lại)`;
       }
       if (bottomBanner) {
-        bottomBanner.style.background = isUploaded ? 'rgba(2, 132, 199, 0.28)' : 'rgba(34, 197, 94, 0.28)';
-        bottomBanner.style.borderColor = isUploaded ? '#38bdf8' : '#4ade80';
-        bottomBanner.style.color = '#f8fafc';
-        bottomBanner.innerHTML = isUploaded
-          ? `☁️ ĐIỂM <strong>${stt}</strong> ĐÃ LƯU &amp; UPLOAD XONG LÊN GOOGLE DRIVE (Lúc ${driveTimeStr})!<br/><span style="font-size:0.84rem;color:#fde047;">👉 Hãy bấm nút <strong>"➕ BẤM QUA ĐIỂM MỚI (${nextStt})"</strong> ở dưới để đi đo điểm tiếp theo!</span>`
-          : `✅ ĐIỂM <strong>${stt}</strong> ĐÃ LƯU VÀO MÁY (Lúc ${timeStr} • Tọa độ: ${savedRec.x}, ${savedRec.y})<br/><span style="font-size:0.84rem;color:#fef08a;">👉 Bấm <strong>"☁️ LƯU &amp; UPLOAD LÊN GOOGLE DRIVE"</strong> hoặc <strong>"➕ BẤM QUA ĐIỂM MỚI (${nextStt})"</strong>!</span>`;
+        bottomBanner.style.background = 'rgba(34, 197, 94, 0.28)';
+        bottomBanner.style.borderColor = '#4ade80';
+        bottomBanner.style.color = '#bbf7d0';
+        bottomBanner.innerHTML = `✅ ĐIỂM <strong>${stt}</strong> ĐÃ ĐƯỢC LƯU VÀO MÁY! (Lúc ${timeStr} • Tọa độ: ${savedRec.x}, ${savedRec.y})<br/><span style="font-size:0.84rem;color:#fef08a;">👉 Bấm nút <strong>"➕ BẤM QUA ĐIỂM MỚI (${nextStt})"</strong> để đi đo điểm tiếp theo, hoặc đi xong hết vào <strong>Mục 4</strong> để xuất file!</span>`;
       }
       if (saveBtn) {
-        saveBtn.innerHTML = `✅ ĐÃ LƯU MÁY (${stt})`;
+        saveBtn.innerHTML = `✅ ĐÃ LƯU ${stt} (Bấm để lưu cập nhật nếu sửa)`;
       }
     } else if (savedRec && state.isCurrentFormDirty) {
       if (headerBadge) {
@@ -399,10 +378,10 @@
         bottomBanner.style.background = 'rgba(245, 158, 11, 0.28)';
         bottomBanner.style.borderColor = '#facc15';
         bottomBanner.style.color = '#fef08a';
-        bottomBanner.innerHTML = `📝 ĐIỂM <strong>${stt}</strong> VỪA CÓ CHỈNH SỬA MỚI — Hãy bấm <strong>"☁️ LƯU &amp; UPLOAD DRIVE"</strong> hoặc <strong>"💾 CHỈ LƯU VÀO MÁY"</strong> bên dưới!`;
+        bottomBanner.innerHTML = `📝 ĐIỂM <strong>${stt}</strong> VỪA CÓ CHỈNH SỬA MỚI — Hãy bấm <strong>"💾 LƯU CẬP NHẬT ĐIỂM ${stt}"</strong> bên dưới!`;
       }
       if (saveBtn) {
-        saveBtn.innerHTML = `💾 LƯU CẬP NHẬT (${stt})`;
+        saveBtn.innerHTML = `💾 LƯU CẬP NHẬT ĐIỂM ${stt}`;
       }
     } else {
       if (headerBadge) {
@@ -418,10 +397,10 @@
         bottomBanner.style.background = 'rgba(234, 88, 12, 0.25)';
         bottomBanner.style.borderColor = '#fb923c';
         bottomBanner.style.color = '#ffedd5';
-        bottomBanner.innerHTML = `⏳ TRẠNG THÁI ĐIỂM <strong>${stt}</strong>: <strong>CHƯA LƯU</strong> — Sau khi lấy GPS và nhập số liệu, hãy bấm <strong>"☁️ LƯU &amp; UPLOAD DRIVE"</strong> hoặc <strong>"💾 CHỈ LƯU VÀO MÁY"</strong>!`;
+        bottomBanner.innerHTML = `⏳ TRẠNG THÁI ĐIỂM <strong>${stt}</strong>: <strong>CHƯA LƯU VÀO MÁY</strong> — Sau khi lấy GPS và nhập số liệu, hãy bấm <strong>"💾 LƯU ĐIỂM ${stt} VÀO MÁY"</strong>!`;
       }
       if (saveBtn) {
-        saveBtn.innerHTML = `💾 CHỈ LƯU VÀO MÁY (${stt})`;
+        saveBtn.innerHTML = `💾 LƯU ĐIỂM ${stt} VÀO MÁY`;
       }
     }
   }
@@ -598,11 +577,10 @@
 
     const savedRecords = getAllSavedRecords();
     const doneCount = savedRecords.length;
-    const uploadedCount = savedRecords.filter(r => r.uploadedToDrive).length;
     const pct = Math.min(100, Math.round((doneCount / TOTAL_TARGET_PLOTS) * 100));
 
     document.getElementById('progressText').textContent =
-      `Tiến độ Đợt 1: Đã lưu ${doneCount} / ${TOTAL_TARGET_PLOTS} điểm (Đã lên Drive: ${uploadedCount})`;
+      `Tiến độ Đợt 1: Đã lưu ${doneCount} / ${TOTAL_TARGET_PLOTS} điểm vào máy`;
     document.getElementById('progressBarFill').style.width = `${pct}%`;
 
     const navSaved = document.getElementById('navBadgeSavedCount');
@@ -624,9 +602,7 @@
     allCodes.forEach(stt => {
       const rec = getRecord(stt);
       const master = state.masterPlots.get(stt);
-      const statusIcon = rec
-        ? (rec.uploadedToDrive ? `☁️ Đã lên Drive ✓ (${rec.x}, ${rec.y})` : `🟢 Đã lưu máy ✓ (${rec.x}, ${rec.y})`)
-        : '🟠 Chưa lưu';
+      const statusIcon = rec ? `🟢 ĐÃ LƯU ✓ (${rec.x}, ${rec.y})` : '🟠 Chưa lưu';
       const info = rec
         ? `${rec.note || ''}`
         : (master ? `${master.variety || ''} ${master.xa ? '- ' + master.xa : ''}`.trim() : '');
@@ -643,9 +619,6 @@
     const stt = normalizeStt(sttRaw);
     state.currentPlotStt = stt;
     state.isCurrentFormDirty = false;
-
-    const inlineBox = document.getElementById('inlineUploadProgressBox');
-    if (inlineBox && !state.isUploading) inlineBox.style.display = 'none';
 
     document.getElementById('sttInput').value = stt;
     const quickSel = document.getElementById('plotSelectQuick');
@@ -896,7 +869,7 @@
           <div style="font-weight:900;font-size:1rem;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;">
             <span>🌾 Điểm ${stt}</span>
             <span style="padding:2px 7px;border-radius:99px;font-size:0.74rem;color:#fff;background:${rec ? '#15803d' : '#ea580c'};">
-              ${rec ? (rec.uploadedToDrive ? 'Đã lên Drive ✓' : 'Đã lưu máy ✓') : 'Chưa lưu'}
+              ${rec ? 'Đã lưu ✓' : 'Chưa lưu'}
             </span>
           </div>
           <div style="font-size:0.8rem;line-height:1.4;margin-bottom:8px;">
@@ -1313,7 +1286,6 @@
     const finalNote = document.getElementById('finalNotePreview').value.trim();
 
     const nowIso = new Date().toISOString();
-    const prevSaved = getRecord(stt);
     const record = {
       id: `R1_${stt}`,
       round: CURRENT_ROUND,
@@ -1345,9 +1317,7 @@
         accuracy: state.userGPS.accuracy,
         heading: state.userGPS.heading
       },
-      savedAt: nowIso,
-      uploadedToDrive: prevSaved ? !!prevSaved.uploadedToDrive : false,
-      uploadedAt: prevSaved ? prevSaved.uploadedAt : null
+      savedAt: nowIso
     };
 
     await dbPut('survey_records', record);
@@ -1383,7 +1353,7 @@
 
     if (!options.silentPopup) {
       showModal({
-        title: `✅ ĐÃ LƯU VÀO MÁY ĐIỂM ${stt}!`,
+        title: `✅ ĐÃ LƯU THÀNH CÔNG ĐIỂM ${stt} VÀO MÁY!`,
         html: `
           <div style="background:rgba(34,197,94,0.15);border:1.5px solid #4ade80;border-radius:10px;padding:12px;margin-bottom:12px;line-height:1.55;">
             <div>📍 <strong>Mã điểm ruộng:</strong> <span style="color:#facc15;font-weight:900;">${stt}</span> (Lưu lúc ${savedTimeStr})</div>
@@ -1396,7 +1366,7 @@
             </div>
           </div>
           <p style="font-size:0.9rem;color:#fef08a;font-weight:700;">
-            Bạn muốn Upload điểm này lên Google Drive ngay hay chuyển qua điểm mới <strong>${nextStt}</strong>?
+            Bấm <strong>"➕ BẤM QUA ĐIỂM MỚI (${nextStt})"</strong> để đi đo điểm tiếp theo, hoặc khi đi xong hết hãy vào <strong>Mục 4 (Xuất Sau Khi Đi)</strong> để xuất 1 gói <code>.ZIP</code> duy nhất!
           </p>
         `,
         buttons: [
@@ -1405,9 +1375,9 @@
             className: 'btn btn-outline btn-sm'
           },
           {
-            label: `☁️ Upload ${stt} lên Drive`,
-            className: 'btn btn-zalo btn-sm',
-            onClick: () => uploadSingleRecordToDriveWithProgress(record)
+            label: `📦 Đi xong → Tới Mục 4 Xuất File`,
+            className: 'btn btn-primary btn-sm',
+            onClick: () => switchTab('tab-export')
           },
           {
             label: `➕ BẤM QUA ĐIỂM MỚI (${nextStt}) ➡️`,
@@ -1425,22 +1395,22 @@
     return record;
   }
 
-  // --- REAL-TIME GOOGLE DRIVE UPLOAD ENGINE WITH CLEAR PROGRESS & COMPLETION ---
-  function renderProgressStepUI(targetPrefix, titleText, percent, steps) {
-    const box = document.getElementById(`${targetPrefix}UploadProgressBox`);
-    const titleEl = document.getElementById(`${targetPrefix}UploadTitle`);
-    const pctEl = document.getElementById(`${targetPrefix}UploadPercent`);
-    const barEl = document.getElementById(`${targetPrefix}UploadBar`);
-    const listEl = document.getElementById(`${targetPrefix}UploadStepList`);
+  // --- EXPORT WITH REAL-TIME 0% -> 100% PACKAGING PROGRESS AFTER THE FIELD TRIP ---
+  function renderProgressStepUI(titleText, percent, steps) {
+    const box = document.getElementById('tabExportUploadProgressBox');
+    const titleEl = document.getElementById('tabExportUploadTitle');
+    const pctEl = document.getElementById('tabExportUploadPercent');
+    const barEl = document.getElementById('tabExportUploadBar');
+    const listEl = document.getElementById('tabExportUploadStepList');
 
     if (!box) return;
     box.style.display = 'block';
-    box.style.borderColor = percent >= 100 ? '#22c55e' : '#38bdf8';
+    box.style.borderColor = percent >= 100 ? '#22c55e' : '#facc15';
     box.style.background = percent >= 100 ? 'rgba(21, 128, 61, 0.25)' : '#06140c';
 
     if (titleEl) {
       titleEl.textContent = titleText;
-      titleEl.style.color = percent >= 100 ? '#4ade80' : '#38bdf8';
+      titleEl.style.color = percent >= 100 ? '#4ade80' : '#fde047';
     }
     if (pctEl) {
       pctEl.textContent = `${Math.round(percent)}%`;
@@ -1459,240 +1429,81 @@
     }
   }
 
-  async function postPayloadToWebhook(url, payloadObj) {
-    // Use fetch with text/plain CORS-safe body for Google Apps Script Web Apps
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payloadObj)
-    });
-    return resp;
-  }
-
-  async function uploadSingleRecordToDriveWithProgress(record) {
-    if (state.isUploading) {
-      showToast('⏳ Đang có tiến trình Upload chạy, vui lòng đợi hoàn tất!', 'warn');
-      return;
-    }
-    state.isUploading = true;
-
-    const stt = record.stt;
-    const nextStt = getNextSttCode(stt);
-    const webhookUrl = (state.driveWebhookUrl || '').trim();
-
-    const steps = [
-      { text: `Bước 1/4: Chuẩn bị bảng số liệu 9 cột điểm ${stt}`, status: 'running' },
-      { text: `Bước 2/4: Xử lý & tải lên Ảnh 1 (Tổng Quan)`, status: 'pending' },
-      { text: `Bước 3/4: Xử lý & tải lên Ảnh 2 & 3 (Cận cảnh 1, 2)`, status: 'pending' },
-      { text: `Bước 4/4: Đồng bộ vào thư mục Google Drive (KS-LUA-3-TINH)`, status: 'pending' }
-    ];
-
-    renderProgressStepUI('inline', `🔄 ĐANG UPLOAD ĐIỂM ${stt} LÊN GOOGLE DRIVE...`, 12, steps);
-
-    try {
-      await sleep(300);
-      steps[0].status = 'done';
-      steps[1].status = 'running';
-      renderProgressStepUI('inline', `🔄 ĐANG TẢI ẢNH TỔNG QUAN (${stt})...`, 38, steps);
-
-      if (webhookUrl) {
-        // Send photos & row directly to the Google Apps Script Webhook for folder 1N74C2GaXeEFN5C8oAbNU3amc0Y6fPASL
-        const p1 = record.photos && record.photos.TongQuan;
-        if (p1 && p1.stampedDataUrl) {
-          await postPayloadToWebhook(webhookUrl, {
-            action: 'upload_photo',
-            folderId: DRIVE_FOLDER_ID,
-            stt: record.stt,
-            fileName: p1.fileName,
-            base64Data: p1.stampedDataUrl.split(',')[1],
-            mimeType: 'image/jpeg'
-          });
-        }
-        steps[1].status = 'done';
-        steps[2].status = 'running';
-        renderProgressStepUI('inline', `🔄 ĐANG TẢI ẢNH CẬN 1 & CẬN 2 (${stt})...`, 68, steps);
-
-        for (const tk of ['Can1', 'Can2']) {
-          const p = record.photos && record.photos[tk];
-          if (p && p.stampedDataUrl) {
-            await postPayloadToWebhook(webhookUrl, {
-              action: 'upload_photo',
-              folderId: DRIVE_FOLDER_ID,
-              stt: record.stt,
-              fileName: p.fileName,
-              base64Data: p.stampedDataUrl.split(',')[1],
-              mimeType: 'image/jpeg'
-            });
-          }
-        }
-
-        steps[2].status = 'done';
-        steps[3].status = 'running';
-        renderProgressStepUI('inline', `🔄 ĐANG GHI DÒNG SỐ LIỆU VÀO SHEET TRÊN DRIVE...`, 90, steps);
-
-        const rowObj = buildStandardSheetRows([record])[0];
-        await postPayloadToWebhook(webhookUrl, {
-          action: 'append_row',
-          folderId: DRIVE_FOLDER_ID,
-          stt: record.stt,
-          row: rowObj
-        });
-      } else {
-        // Package single-point or current ZIP and prepare direct Drive upload
-        await sleep(350);
-        steps[1].status = 'done';
-        steps[2].status = 'running';
-        renderProgressStepUI('inline', `🔄 ĐANG ĐÓNG GÓI ẢNH CẬN CẢNH (${stt})...`, 68, steps);
-        await sleep(350);
-        steps[2].status = 'done';
-        steps[3].status = 'running';
-        renderProgressStepUI('inline', `🔄 ĐANG CHUẨN BỊ GÓI DỮ LIỆU ĐƯA LÊN DRIVE...`, 90, steps);
-        await sleep(300);
-      }
-
-      // Mark 100% Completed!
-      steps[3].status = 'done';
-      const doneIso = new Date().toISOString();
-      const doneTime = formatShortTime(doneIso);
-      record.uploadedToDrive = true;
-      record.uploadedAt = doneIso;
-      await dbPut('survey_records', record);
-      state.surveyRecords.set(record.id, record);
-
-      renderProgressStepUI(
-        'inline',
-        `🎉 ĐÃ UPLOAD XONG 100% ĐIỂM ${stt} (Hoàn tất lúc ${doneTime})!`,
-        100,
-        steps
-      );
-
-      if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
-      updateHeaderAndProgressUI();
-
-      // If no webhook URL configured yet, also download/share the package and offer 1-tap open to Drive folder KS-LUA-3-TINH
-      if (!webhookUrl) {
-        const { blob, fileName } = await buildZipPackageBlob([record]);
-        triggerDownloadBlob(blob, fileName);
-      }
-
-      showModal({
-        title: `🎉 ĐÃ UPLOAD XONG 100% ĐIỂM ${stt}!`,
-        html: `
-          <div style="background:rgba(34,197,94,0.18);border:2px solid #22c55e;border-radius:12px;padding:12px;margin-bottom:12px;line-height:1.55;">
-            <div style="font-size:1.05rem;font-weight:900;color:#4ade80;margin-bottom:4px;">
-              ✅ Trạng thái: HOÀN TẤT 100% (Lúc ${doneTime})
-            </div>
-            <div>📍 <strong>Điểm ruộng:</strong> ${stt} (Tọa độ: ${record.x}, ${record.y})</div>
-            <div>📂 <strong>Thư mục đích:</strong> <code>KS-LUA-3-TINH</code></div>
-            ${!webhookUrl ? `<div style="margin-top:6px;color:#fde047;font-size:0.84rem;">💡 Gói file <strong>Dot1_${stt}.zip</strong> cũng đã được tải sẵn về máy. Bấm "Mở thư mục Google Drive" bên dưới để kiểm tra/thả vào thư mục, hoặc gắn Cổng tự động ở Tab 4!</div>` : `<div style="margin-top:6px;color:#86efac;font-size:0.84rem;">☁️ Dữ liệu và 3 ảnh có Code đã được đẩy thẳng vào thư mục Google Drive <strong>KS-LUA-3-TINH</strong>!</div>`}
-          </div>
-          <p style="font-weight:800;color:#fef08a;">
-            Bạn có thể bấm <strong>"➕ BẤM QUA ĐIỂM MỚI (${nextStt})"</strong> để đi đo điểm tiếp theo!
-          </p>
-        `,
-        buttons: [
-          {
-            label: '📂 Mở thư mục Google Drive',
-            className: 'btn btn-outline btn-sm',
-            onClick: () => window.open(DRIVE_FOLDER_URL, '_blank')
-          },
-          {
-            label: `➕ BẤM QUA ĐIỂM MỚI (${nextStt}) ➡️`,
-            className: 'btn btn-yellow btn-sm',
-            onClick: () => {
-              selectPlotIntoForm(nextStt, { panMap: true, autoGetGPS: true });
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-              showToast(`👉 Đã chuyển sang điểm mới: ${nextStt}`);
-            }
-          }
-        ]
-      });
-    } catch (err) {
-      steps.forEach(s => { if (s.status === 'running') s.status = 'error'; });
-      renderProgressStepUI('inline', `⚠️ LỖI KẾT NỐI MẠNG KHI UPLOAD (${err.message})`, 50, steps);
-      showToast('Điểm đã được lưu an toàn trong máy! Bạn có thể bấm Upload lại khi sóng 4G khỏe hơn.', 'warn');
-    } finally {
-      state.isUploading = false;
-    }
-  }
-
-  // Batch upload all saved records in Tab 4 with full step-by-step progress bar
-  async function uploadAllSavedRecordsToDrive() {
+  async function exportAllAfterTripWithProgress(shareMode = 'download_for_drive') {
     const records = getAllSavedRecords();
     if (records.length === 0) {
       showToast('Chưa có điểm khảo sát nào được lưu! Hãy lưu ít nhất 1 điểm ở Tab 1.', 'warn');
       return;
     }
-    if (state.isUploading) {
-      showToast('⏳ Đang có tiến trình Upload chạy, vui lòng đợi!', 'warn');
-      return;
-    }
+    if (state.isUploading) return;
     state.isUploading = true;
 
-    const webhookUrl = (state.driveWebhookUrl || '').trim();
+    let photoCount = 0;
+    records.forEach(r => {
+      if (r.photos) {
+        ['TongQuan', 'Can1', 'Can2'].forEach(tk => {
+          if (r.photos[tk] && r.photos[tk].stampedDataUrl) photoCount++;
+        });
+      }
+    });
+
     const steps = [
-      { text: `Bước 1/4: Đóng gói bảng Excel (.xlsx), CSV & Bản đồ GIS (${records.length} điểm)`, status: 'running' },
-      { text: `Bước 2/4: Nén toàn bộ ảnh đóng dấu Code vào gói .ZIP`, status: 'pending' },
-      { text: `Bước 3/4: Đẩy dữ liệu & hình ảnh lên thư mục Google Drive (KS-LUA-3-TINH)`, status: 'pending' },
-      { text: `Bước 4/4: Xác nhận hoàn tất 100% trên Google Drive`, status: 'pending' }
+      { text: `Bước 1/3: Tạo bảng Excel (.xlsx), CSV & Bản đồ GIS (${records.length} điểm)`, status: 'running' },
+      { text: `Bước 2/3: Nén ${photoCount} ảnh đã đóng dấu Code vào gói .ZIP`, status: 'pending' },
+      { text: `Bước 3/3: Xuất gói file .ZIP hoàn tất 100%`, status: 'pending' }
     ];
 
-    renderProgressStepUI('tabExport', `⏳ ĐANG ĐÓNG GÓI & TẢI LÊN GOOGLE DRIVE (0/${records.length} điểm)...`, 15, steps);
+    renderProgressStepUI(`⏳ ĐANG ĐÓNG GÓI DỮ LIỆU (${records.length} ĐIỂM)...`, 10, steps);
 
     try {
-      const { blob, fileName } = await buildZipPackageBlob(records);
+      const { blob, fileName } = await buildZipPackageBlob(records, (pct) => {
+        steps[0].status = 'done';
+        steps[1].status = 'running';
+        const mappedPct = 15 + Math.round(pct * 0.8);
+        renderProgressStepUI(`🔄 ĐANG NÉN GÓI .ZIP (${Math.round(pct)}%)...`, mappedPct, steps);
+      });
+
       steps[0].status = 'done';
       steps[1].status = 'done';
-      steps[2].status = 'running';
-      renderProgressStepUI('tabExport', `🔄 ĐANG UPLOAD GÓI ${fileName} LÊN DRIVE...`, 55, steps);
-
-      if (webhookUrl) {
-        // Upload full ZIP + rows to Google Apps Script Webhook
-        const base64Zip = await blobToBase64(blob);
-        await postPayloadToWebhook(webhookUrl, {
-          action: 'upload_zip',
-          folderId: DRIVE_FOLDER_ID,
-          fileName,
-          base64Data: base64Zip,
-          rows: buildStandardSheetRows(records)
-        });
-      } else {
-        await sleep(500);
-        triggerDownloadBlob(blob, fileName);
-      }
-
       steps[2].status = 'done';
-      steps[3].status = 'done';
-
-      const doneIso = new Date().toISOString();
-      const doneTime = formatShortTime(doneIso);
-      for (const r of records) {
-        r.uploadedToDrive = true;
-        r.uploadedAt = doneIso;
-        await dbPut('survey_records', r);
-        state.surveyRecords.set(r.id, r);
-      }
+      const doneTime = formatShortTime(new Date().toISOString());
 
       renderProgressStepUI(
-        'tabExport',
-        `🎉 ĐÃ UPLOAD XONG 100% (${records.length} ĐIỂM) LÚC ${doneTime}!`,
+        `🎉 ĐÃ XUẤT XONG 100% GÓI .ZIP LÚC ${doneTime}!`,
         100,
         steps
       );
       if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
-      updateHeaderAndProgressUI();
+
+      if (shareMode === 'zalo_share') {
+        const zipFile = new File([blob], fileName, { type: 'application/zip' });
+        if (navigator.canShare && navigator.canShare({ files: [zipFile] })) {
+          await navigator.share({
+            title: `Khảo sát lúa Đợt 1 - ${state.surveyorName}`,
+            text: document.getElementById('zaloReportTextarea').value,
+            files: [zipFile]
+          });
+          showToast('✅ Đã mở bảng chia sẻ qua Zalo / Drive!');
+          return;
+        }
+      }
+
+      // Download the ZIP file to device and show clear completion modal with 1-click button to open Google Drive folder KS-LUA-3-TINH
+      triggerDownloadBlob(blob, fileName);
 
       showModal({
-        title: `🎉 ĐÃ HOÀN TẤT 100% (${records.length} ĐIỂM ĐỢT 1)!`,
+        title: `🎉 ĐÃ XUẤT XONG 100% GÓI .ZIP (${records.length} ĐIỂM)!`,
         html: `
           <div style="background:rgba(34,197,94,0.18);border:2px solid #22c55e;border-radius:12px;padding:12px;margin-bottom:12px;line-height:1.55;">
             <div style="font-size:1.05rem;font-weight:900;color:#4ade80;margin-bottom:6px;">
-              ✅ ĐÃ XỬ LÝ XONG 100% LÚC ${doneTime}
+              ✅ ĐÃ TẢI XONG VỀ MÁY LÚC ${doneTime}
             </div>
-            <div>📦 <strong>Gói dữ liệu:</strong> <code>${fileName}</code> (${records.length} điểm ruộng)</div>
-            <div>📂 <strong>Thư mục Google Drive:</strong> <code>KS-LUA-3-TINH</code></div>
-            ${!webhookUrl ? `<div style="margin-top:8px;color:#fde047;font-size:0.85rem;">👉 File <strong>${fileName}</strong> đã tải xong về máy. Bấm nút <strong>"Mở thư mục Google Drive KS-LUA-3-TINH"</strong> bên dưới để thả file vào thư mục (hoặc cài Cổng tự động 1 lần để các lần sau tự bắn thẳng vào Drive).</div>` : `<div style="margin-top:8px;color:#86efac;font-size:0.85rem;">☁️ Toàn bộ gói ZIP, bảng tổng hợp và ảnh có Code đã nằm trong thư mục <strong>KS-LUA-3-TINH</strong>!</div>`}
+            <div>📦 <strong>Tên file vừa tải về:</strong> <code style="color:#facc15;">${fileName}</code></div>
+            <div>📊 <strong>Gồm:</strong> ${records.length} điểm khảo sát (Excel 9 cột + CSV + KML/GeoJSON + ${photoCount} ảnh có Code)</div>
           </div>
+          <p style="font-size:0.9rem;color:#fef08a;font-weight:800;">
+            👉 Bây giờ bạn có thể gửi file <code>${fileName}</code> qua Zalo, hoặc bấm nút dưới đây để mở thư mục Google Drive <strong>KS-LUA-3-TINH</strong> và tải file này lên!
+          </p>
         `,
         buttons: [
           { label: 'Đóng', className: 'btn btn-outline btn-sm' },
@@ -1704,113 +1515,14 @@
         ]
       });
     } catch (err) {
-      steps.forEach(s => { if (s.status === 'running') s.status = 'error'; });
-      renderProgressStepUI('tabExport', `⚠️ LỖI KHI UPLOAD LÊN DRIVE: ${err.message}`, 60, steps);
-      showToast('Lỗi khi tải lên Drive: ' + err.message, 'error');
+      if (err && err.name !== 'AbortError') {
+        steps.forEach(s => { if (s.status === 'running') s.status = 'error'; });
+        renderProgressStepUI(`⚠️ LỖI KHI ĐÓNG GÓI: ${err.message}`, 50, steps);
+        showToast('Lỗi đóng gói: ' + err.message, 'error');
+      }
     } finally {
       state.isUploading = false;
     }
-  }
-
-  function blobToBase64(blob) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const res = reader.result || '';
-        resolve(res.split(',')[1] || '');
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  }
-
-  // Guide Modal with pre-configured Google Apps Script code for Folder 1N74C2GaXeEFN5C8oAbNU3amc0Y6fPASL
-  function showAppsScriptSetupModal() {
-    const gasCode = `// MÃ TỰ ĐỘNG GHI VÀO THƯ MỤC GOOGLE DRIVE: KS-LUA-3-TINH
-const FOLDER_ID = '${DRIVE_FOLDER_ID}';
-
-function doPost(e) {
-  try {
-    const data = JSON.parse(e.postData.contents);
-    const rootFolder = DriveApp.getFolderById(data.folderId || FOLDER_ID);
-
-    if (data.action === 'upload_photo') {
-      let imgFolderIter = rootFolder.getFoldersByName('Anh_Co_Code');
-      let imgFolder = imgFolderIter.hasNext() ? imgFolderIter.next() : rootFolder.createFolder('Anh_Co_Code');
-      const bytes = Utilities.base64Decode(data.base64Data);
-      const blob = Utilities.newBlob(bytes, data.mimeType || 'image/jpeg', data.fileName);
-      const file = imgFolder.createFile(blob);
-      return ContentService.createTextOutput(JSON.stringify({ ok: true, fileId: file.getId() })).setMimeType(ContentService.MimeType.JSON);
-    }
-
-    if (data.action === 'upload_zip') {
-      const bytes = Utilities.base64Decode(data.base64Data);
-      const blob = Utilities.newBlob(bytes, 'application/zip', data.fileName);
-      const file = rootFolder.createFile(blob);
-      if (Array.isArray(data.rows)) {
-        data.rows.forEach(r => appendRowToSheet(rootFolder, r));
-      }
-      return ContentService.createTextOutput(JSON.stringify({ ok: true, fileId: file.getId() })).setMimeType(ContentService.MimeType.JSON);
-    }
-
-    if (data.action === 'append_row' && data.row) {
-      appendRowToSheet(rootFolder, data.row);
-      return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
-    }
-
-    return ContentService.createTextOutput(JSON.stringify({ ok: true, msg: 'Connected to KS-LUA-3-TINH' })).setMimeType(ContentService.MimeType.JSON);
-  } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ ok: false, error: err.toString() })).setMimeType(ContentService.MimeType.JSON);
-  }
-}
-
-function appendRowToSheet(folder, rowObj) {
-  const sheetName = 'Bang_Tong_Hop_Khao_Sat_Lua_Dot1';
-  const files = folder.getFilesByName(sheetName);
-  let ss;
-  if (files.hasNext()) {
-    ss = SpreadsheetApp.open(files.next());
-  } else {
-    ss = SpreadsheetApp.create(sheetName);
-    const ssFile = DriveApp.getFileById(ss.getId());
-    folder.addFile(ssFile);
-    DriveApp.getRootFolder().removeFile(ssFile);
-  }
-  const sheet = ss.getSheets()[0];
-  const headers = Object.keys(rowObj);
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow(headers);
-  }
-  sheet.appendRow(headers.map(k => rowObj[k]));
-}`;
-
-    showModal({
-      title: '⚙️ Gắn Cổng Tự Động Vào Thư Mục KS-LUA-3-TINH (30 giây)',
-      html: `
-        <p style="font-size:0.85rem;margin-bottom:8px;line-height:1.45;">
-          Đoạn mã dưới đây đã được điền sẵn ID thư mục <strong>KS-LUA-3-TINH</strong> (<code>${DRIVE_FOLDER_ID}</code>). Chỉ cần làm 1 lần:
-        </p>
-        <ol style="font-size:0.82rem;padding-left:18px;margin-bottom:10px;line-height:1.5;color:#fde047;">
-          <li>Bấm <strong>"📋 Copy Mã Script"</strong> bên dưới và mở <a href="https://script.google.com/home/start" target="_blank" rel="noopener" style="color:#38bdf8;text-decoration:underline;">script.google.com</a> → <strong>Dự án mới (New Project)</strong>.</li>
-          <li>Dán đè vào <code>Code.gs</code> → Bấm <strong>Triển khai (Deploy) → Tùy chọn triển khai mới → Ứng dụng web (Web App)</strong>.</li>
-          <li>Chọn <em>Thực thi dưới dạng: Tôi (Me)</em> và <em>Ai có quyền truy cập: Bất kỳ ai (Anyone)</em> → Copy link <code>https://script.google.com/macros/s/.../exec</code> dán vào ô Cổng Drive!</li>
-        </ol>
-        <textarea id="gasCodeTextarea" class="form-textarea" rows="8" readonly style="font-family:monospace;font-size:0.75rem;">${gasCode}</textarea>
-      `,
-      buttons: [
-        { label: 'Đóng', className: 'btn btn-outline btn-sm' },
-        {
-          label: '📋 Copy Mã Script & Mở Google Script',
-          className: 'btn btn-yellow btn-sm',
-          onClick: () => {
-            navigator.clipboard.writeText(gasCode).then(() => {
-              showToast('✅ Đã copy mã Google Apps Script! Đang mở trang tạo dự án...');
-              window.open('https://script.google.com/home/start', '_blank');
-            });
-          }
-        }
-      ]
-    });
   }
 
   // --- TAB 3: SAVED PLOT LIST ---
@@ -1849,9 +1561,7 @@ function appendRowToSheet(folder, rowObj) {
       }
 
       const statusBadgeHTML = rec
-        ? (rec.uploadedToDrive
-          ? `<span class="status-pill-done" style="background:#0284c7;">☁️ ĐÃ LÊN DRIVE ✓ (${formatShortTime(rec.uploadedAt)})</span>`
-          : `<span class="status-pill-done">💾 ĐÃ LƯU MÁY (${rec.surveyDateTime})</span>`)
+        ? `<span class="status-pill-done">✅ ĐÃ LƯU (${rec.surveyDateTime})</span>`
         : `<span class="status-pill-todo">⏳ Chưa lưu</span>`;
 
       htmlList.push(`
@@ -1945,7 +1655,7 @@ function appendRowToSheet(folder, rowObj) {
       baseNote: r.note
     }));
     const payload = {
-      version: '3.1',
+      version: '3.2',
       exportedAt: formatNowDateTime(),
       exportedBy: state.surveyorName,
       totalPlots: list.length,
@@ -2065,8 +1775,7 @@ function appendRowToSheet(folder, rowObj) {
           note: `${p.variety} - ${p.method}`,
           photos: { TongQuan: null, Can1: null, Can2: null },
           gpsActual: { x: p.x, y: p.y, accuracy: 6, heading: 90 },
-          savedAt: new Date().toISOString(),
-          uploadedToDrive: false
+          savedAt: new Date().toISOString()
         };
         await dbPut('survey_records', rec);
         state.surveyRecords.set(rec.id, rec);
@@ -2195,7 +1904,7 @@ function appendRowToSheet(folder, rowObj) {
     return bytes;
   }
 
-  async function buildZipPackageBlob(customRecords) {
+  async function buildZipPackageBlob(customRecords, onProgress) {
     const records = customRecords || getAllSavedRecords();
     const prefix = getBaseExportPrefix(records);
     const zip = new JSZip();
@@ -2216,7 +1925,7 @@ function appendRowToSheet(folder, rowObj) {
       baseNote: r.note
     }));
     zip.file('DanhMuc_RuongDot1.json', JSON.stringify({
-      version: '3.1',
+      version: '3.2',
       exportedAt: formatNowDateTime(),
       exportedBy: state.surveyorName,
       totalPlots: masterList.length,
@@ -2244,7 +1953,12 @@ function appendRowToSheet(folder, rowObj) {
       });
     });
 
-    const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+    const blob = await zip.generateAsync(
+      { type: 'blob', compression: 'DEFLATE' },
+      (meta) => {
+        if (typeof onProgress === 'function') onProgress(meta.percent || 0);
+      }
+    );
     return { blob, fileName: `${prefix}.zip`, count: records.length };
   }
 
@@ -2277,10 +1991,10 @@ function appendRowToSheet(folder, rowObj) {
     if (previewEl) {
       previewEl.innerHTML = `
         <div style="font-weight:900;color:#facc15;margin-bottom:6px;word-break:break-all;">
-          📁 Tên gói nén: ${prefix}.zip
+          📁 Tên gói nén khi xuất: ${prefix}.zip
         </div>
         <ul style="padding-left:18px;line-height:1.55;color:var(--text-secondary);">
-          <li>📊 <strong>${prefix}.xlsx</strong> &amp; <strong>.csv</strong> (${records.length} điểm đã lưu, chuẩn 9 cột gốc)</li>
+          <li>📊 <strong>${prefix}.xlsx</strong> &amp; <strong>.csv</strong> (${records.length} điểm đã lưu trong máy, chuẩn 9 cột gốc)</li>
           <li>🗂️ <strong>DanhMuc_RuongDot1.json</strong> (${records.length} điểm ruộng Đợt 1)</li>
           <li>🌍 <strong>${prefix}.geojson</strong> &amp; <strong>.kml</strong> (Mở trực tiếp trên Google Earth / QGIS)</li>
           <li>🖼️ Thư mục <strong>Anh_Co_Code/</strong> (${photoCount} ảnh JPEG đã đóng dấu mã Code)</li>
@@ -2289,14 +2003,13 @@ function appendRowToSheet(folder, rowObj) {
     }
 
     const doneStts = records.map(r => r.stt).join(', ');
-    const uploadedCount = records.filter(r => r.uploadedToDrive).length;
     const reportText = [
       `🌾 [BÁO CÁO KHẢO SÁT LÚA THỰC ĐỊA - ĐỢT 1]`,
       `👤 Người khảo sát: ${state.surveyorName} (Mã: ${getSurveyorCode(state.surveyorName)})`,
       `🕒 Thời gian báo cáo: ${formatNowDateTime()}`,
-      `✅ Tổng số điểm đã lưu: ${records.length} điểm (Đã lên Drive: ${uploadedCount} điểm)`,
+      `✅ Tổng số điểm đã khảo sát: ${records.length} điểm`,
       `📍 Danh sách mã điểm (${records.length}): ${doneStts || 'Chưa có'}`,
-      `☁️ Thư mục Google Drive: ${DRIVE_FOLDER_URL}`,
+      `📂 Thư mục Google Drive nộp dữ liệu: ${DRIVE_FOLDER_URL}`,
       `📦 File đính kèm: ${prefix}.zip`
     ].join('\n');
 
@@ -2325,10 +2038,7 @@ function appendRowToSheet(folder, rowObj) {
     const modal = document.getElementById('qrModal');
     const urlInput = document.getElementById('qrUrlInput');
     const isLocalOrFile = location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-    let baseUrl = isLocalOrFile ? 'https://pdtien.github.io/khao-sat-lua-dbscl/' : (window.location.origin + window.location.pathname);
-    if (state.driveWebhookUrl) {
-      baseUrl += `?gas=${encodeURIComponent(state.driveWebhookUrl)}`;
-    }
+    const baseUrl = isLocalOrFile ? 'https://pdtien.github.io/khao-sat-lua-dbscl/' : (window.location.origin + window.location.pathname);
     urlInput.value = baseUrl;
     renderQRCode(baseUrl);
     modal.classList.add('open');
@@ -2550,17 +2260,9 @@ function appendRowToSheet(folder, rowObj) {
       document.getElementById('lightboxModal').classList.remove('open');
     });
 
-    // Save Only Button
+    // Save Point to Device (Field workflow)
     document.getElementById('btnSaveRecordStay').addEventListener('click', () => {
       handleSaveSurveyRecord({ silentPopup: false });
-    });
-
-    // Save & Upload to Google Drive Button (Method 1)
-    document.getElementById('btnSaveAndUploadDrive').addEventListener('click', async () => {
-      const rec = await handleSaveSurveyRecord({ silentPopup: true });
-      if (rec) {
-        await uploadSingleRecordToDriveWithProgress(rec);
-      }
     });
 
     document.getElementById('btnResetForm').addEventListener('click', () => {
@@ -2575,7 +2277,7 @@ function appendRowToSheet(folder, rowObj) {
       showToast('Đã xóa trắng ảnh và số đo nước của điểm hiện tại');
     });
 
-    document.getElementById('btnJumpToMap').addEventListener('click', () => switchTab('tab-map'));
+    document.getElementById('btnGoToExportAfterTrip').addEventListener('click', () => switchTab('tab-export'));
 
     // Tab 2: Map controls
     document.getElementById('btnLocateMeMap').addEventListener('click', () => {
@@ -2637,76 +2339,17 @@ function appendRowToSheet(folder, rowObj) {
       });
     });
 
-    // Tab 4: Google Drive Upload & Webhook Config (Method 1)
-    const webhookInput = document.getElementById('driveWebhookUrlInput');
-    if (webhookInput) webhookInput.value = state.driveWebhookUrl;
-
-    document.getElementById('btnSaveWebhookUrl').addEventListener('click', () => {
-      const val = document.getElementById('driveWebhookUrlInput').value.trim();
-      state.driveWebhookUrl = val;
-      localStorage.setItem('ksl_driveWebhookUrl', val);
-      showToast(val ? '✅ Đã lưu Cổng tự động Google Drive (KS-LUA-3-TINH)!' : 'Đã xóa Cổng tự động Drive');
+    // Tab 4: Export After Field Trip (with 0-100% progress bar)
+    document.getElementById('btnUploadAllToDrive').addEventListener('click', () => {
+      exportAllAfterTripWithProgress('download_for_drive');
     });
 
-    document.getElementById('btnShowAppsScriptGuide').addEventListener('click', showAppsScriptSetupModal);
-
-    document.getElementById('btnTestDriveWebhook').addEventListener('click', async () => {
-      const val = document.getElementById('driveWebhookUrlInput').value.trim();
-      if (!val) {
-        showAppsScriptSetupModal();
-        return;
-      }
-      showToast('🔄 Đang kiểm tra kết nối tới thư mục KS-LUA-3-TINH...');
-      try {
-        await postPayloadToWebhook(val, { action: 'ping', folderId: DRIVE_FOLDER_ID });
-        showToast('🎉 Kết nối Cổng Google Drive KS-LUA-3-TINH thành công!');
-      } catch (err) {
-        showToast('Lỗi kết nối: ' + err.message, 'error');
-      }
+    document.getElementById('btnShareZaloZip').addEventListener('click', () => {
+      exportAllAfterTripWithProgress('zalo_share');
     });
 
-    document.getElementById('btnUploadAllToDrive').addEventListener('click', uploadAllSavedRecordsToDrive);
-
-    // Tab 4: Zalo / ZIP Export (Method 2)
-    document.getElementById('btnShareZaloZip').addEventListener('click', async () => {
-      const records = getAllSavedRecords();
-      if (records.length === 0) {
-        showToast('Bạn chưa lưu điểm khảo sát nào! Hãy bấm "Lưu điểm" ở Tab 1 trước khi xuất gói ZIP.', 'warn');
-        return;
-      }
-      try {
-        showToast('⏳ Đang đóng gói file .ZIP (Excel + GIS + Ảnh có Code)...');
-        const { blob, fileName } = await buildZipPackageBlob(records);
-        const zipFile = new File([blob], fileName, { type: 'application/zip' });
-
-        if (navigator.canShare && navigator.canShare({ files: [zipFile] })) {
-          await navigator.share({
-            title: `Khảo sát lúa Đợt 1 - ${state.surveyorName}`,
-            text: document.getElementById('zaloReportTextarea').value,
-            files: [zipFile]
-          });
-          showToast('✅ Đã mở bảng chia sẻ qua Zalo / Google Drive!');
-        } else {
-          triggerDownloadBlob(blob, fileName);
-          showToast('✅ Đã tải gói .ZIP về máy! Bạn có thể gửi qua Zalo hoặc thả vào Google Drive.');
-        }
-      } catch (err) {
-        if (err && err.name !== 'AbortError') {
-          showToast('Lỗi đóng gói chia sẻ: ' + err.message, 'error');
-        }
-      }
-    });
-
-    document.getElementById('btnDownloadZipOnly').addEventListener('click', async () => {
-      const records = getAllSavedRecords();
-      if (records.length === 0) {
-        showToast('Chưa có điểm nào được lưu để xuất .ZIP!', 'warn');
-        return;
-      }
-      showToast('⏳ Đang tạo gói nén .ZIP...');
-      const { blob, fileName } = await buildZipPackageBlob(records);
-      triggerDownloadBlob(blob, fileName);
-      showToast(`✅ Đã tải xuống ${fileName}`);
+    document.getElementById('btnDownloadZipOnly').addEventListener('click', () => {
+      exportAllAfterTripWithProgress('download_for_drive');
     });
 
     document.getElementById('btnDownloadExcelOnly').addEventListener('click', () => {
@@ -2735,7 +2378,7 @@ function appendRowToSheet(folder, rowObj) {
 
   function registerServiceWorker() {
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-      navigator.serviceWorker.register('./sw.js?v=3.1').then(reg => {
+      navigator.serviceWorker.register('./sw.js?v=3.2').then(reg => {
         if (reg && reg.update) reg.update();
       }).catch(() => {});
     }
