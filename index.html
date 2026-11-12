@@ -11,7 +11,7 @@
   <link rel="icon" type="image/png" href="./icons/icon-192.png" />
   <link rel="apple-touch-icon" href="./icons/icon-192.png" />
   <link rel="stylesheet" href="./vendor/leaflet.css" />
-  <link rel="stylesheet" href="./styles.css?v=3.7" />
+  <link rel="stylesheet" href="./styles.css?v=3.8" />
   <script>
     (function () {
       try {
@@ -23,7 +23,7 @@
         if ('caches' in window) {
           caches.keys().then(function (keys) {
             keys.forEach(function (k) {
-              if (k.indexOf('khao-sat-lua-pwa-v') === 0 && k !== 'khao-sat-lua-pwa-v3.7') {
+              if (k.indexOf('khao-sat-lua-pwa-v') === 0 && k !== 'khao-sat-lua-pwa-v3.8') {
                 caches.delete(k);
               }
             });
@@ -49,16 +49,6 @@
       </div>
       <div class="header-actions">
         <span id="netStatusBadge" class="net-badge net-online">ONLINE</span>
-        <a
-          href="https://drive.google.com/drive/folders/1N74C2GaXeEFN5C8oAbNU3amc0Y6fPASL?usp=sharing"
-          target="_blank"
-          rel="noopener"
-          class="icon-btn"
-          style="text-decoration:none;border-color:#facc15;color:#fde047;"
-          title="Mở thư mục Google Drive KS-LUA-3-TINH"
-        >
-          📂 Drive
-        </a>
         <button type="button" id="btnShowQR" class="icon-btn" title="Mã QR mở trên điện thoại">
           📱 Mã QR
         </button>
@@ -733,92 +723,49 @@
           <div id="tabExportUploadStepList" style="font-size:0.85rem;line-height:1.6;color:#f8fafc;"></div>
         </div>
 
-        <!-- Phương thức 1: ĐẨY THẲNG GÓI .ZIP & EXCEL VÀO THƯ MỤC GOOGLE DRIVE KS-LUA-3-TINH (KHÔNG CẦN KÉO THẢ) -->
+        <!-- Cách 1: NỘP THẲNG GÓI DỮ LIỆU VỀ KHO DỮ LIỆU CHUNG (không hiện đường dẫn kho vì bảo mật) -->
         <div style="background:rgba(2,132,199,0.18);border:2.5px solid #38bdf8;border-radius:12px;padding:14px;margin-bottom:14px;">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:6px;">
             <div style="font-weight:900;color:#7dd3fc;font-size:1rem;">
-              ☁️ ĐẨY THẲNG VÀO THƯ MỤC GOOGLE DRIVE (KS-LUA-3-TINH)
+              ☁️ Cách 1: NỘP THẲNG VỀ KHO DỮ LIỆU CHUNG
             </div>
-            <span class="code-pill" style="background:#22c55e;color:#052e16;font-weight:900;">🟢 ĐÃ KẾT NỐI SẴN</span>
+            <span class="code-pill" style="background:#22c55e;color:#052e16;font-weight:900;">🔒 BẢO MẬT</span>
           </div>
 
           <div style="font-size:0.84rem;color:#e0f2fe;margin-bottom:10px;line-height:1.45;">
-            Sau khi đi khảo sát về, bật <strong>Wi-Fi</strong> rồi bấm nút màu vàng dưới đây. Toàn bộ file <strong>.ZIP</strong> (chứa ảnh có code) và bảng <strong>Excel .xlsx</strong> sẽ tự động tải thẳng vào thư mục Drive <strong>KS-LUA-3-TINH</strong> (không cần đăng nhập, không cần kéo thả)!
+            Đi khảo sát về, bật <strong>Wi-Fi</strong> rồi bấm nút vàng. Gói dữ liệu được nộp thẳng về kho chung của nhóm.
+            Sau khi nộp xong, máy chỉ hiện <strong>Biên nhận xác nhận</strong> (tên gói, số điểm, số ảnh, giờ nộp) — <strong>không hiện đường dẫn và không tải lại được</strong>.
           </div>
 
-          <button type="button" id="btnDirectPushToDrive" class="btn btn-yellow btn-lg btn-block" style="font-size:1.05rem;padding:12px 16px;margin-bottom:10px;font-weight:900;box-shadow:0 0 16px rgba(250,204,21,0.35);">
-            🚀 ĐẨY THẲNG GÓI .ZIP &amp; EXCEL LÊN GOOGLE DRIVE (0% → 100%)
+          <button type="button" id="btnDirectPushToDrive" class="btn btn-yellow btn-lg btn-block" style="font-size:1.05rem;padding:12px 16px;margin-bottom:4px;font-weight:900;box-shadow:0 0 16px rgba(250,204,21,0.35);">
+            🚀 NỘP GÓI DỮ LIỆU (0% → 100%)
           </button>
-
-          <div class="form-grid-2 form-grid-2-mobile-stack" style="gap:8px;">
-            <button type="button" id="btnUploadAllToDrive" class="btn btn-outline btn-sm" style="border-color:#38bdf8;color:#bae6fd;">
-              📥 Tải Gói .ZIP Về Máy (Dự phòng)
-            </button>
-            <a
-              href="https://drive.google.com/drive/folders/1N74C2GaXeEFN5C8oAbNU3amc0Y6fPASL?usp=sharing"
-              target="_blank"
-              rel="noopener"
-              class="btn btn-outline btn-sm"
-              style="border-color:#38bdf8;color:#7dd3fc;text-decoration:none;text-align:center;"
-            >
-              📂 Mở xem thư mục Drive (KS-LUA-3-TINH)
-            </a>
-          </div>
-
-          <div style="margin-top:8px;text-align:right;">
-            <button type="button" id="btnToggleDriveBridgeSetup" class="btn btn-outline btn-sm" style="padding:2px 8px;font-size:0.72rem;border-color:transparent;color:#94a3b8;">
-              ⚙️ Xem cấu hình cầu nối Drive
-            </button>
-          </div>
-
-          <!-- Hộp cấu hình Cầu nối Google Apps Script / Token để đẩy thẳng không cần kéo thả -->
-          <div id="driveBridgeConfigBox" style="display:none;margin-top:8px;padding:10px;background:rgba(6,20,12,0.85);border:1.5px dashed #38bdf8;border-radius:10px;">
-            <div style="font-weight:800;font-size:0.84rem;color:#fde047;margin-bottom:6px;">
-              🔗 Cầu nối Đẩy Thẳng File Vào Thư Mục <code>1N74C2GaXeEFN5C8oAbNU3amc0Y6fPASL</code> (KS-LUA-3-TINH):
-            </div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">
-              <input
-                type="text"
-                id="gasWebAppUrlInput"
-                class="form-input"
-                style="flex:1;min-width:210px;font-size:0.82rem;"
-                value="https://script.google.com/macros/s/AKfycbxm1wvub6wh1WH3Mg3-dqgBsOHWOsrdcNu8fNjvha2-2vfcTZqClMVUy6e-U730KV666w/exec"
-                placeholder="Dán link https://script.google.com/macros/s/.../exec..."
-              />
-              <button type="button" id="btnSaveGasUrl" class="btn btn-yellow btn-sm">💾 Lưu kết nối</button>
-            </div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;">
-              <button type="button" id="btnCopyGasCode" class="btn btn-outline btn-sm" style="font-size:0.78rem;">
-                📋 Copy Mã Apps Script
-              </button>
-            </div>
-          </div>
         </div>
 
-        <!-- Phương thức 2: Gửi thẳng gói .ZIP qua Zalo hoặc tải lẻ từng file -->
+        <!-- Cách 2: Gửi qua Zalo — đóng gói đúng 1 file .ZIP duy nhất giống khi nộp, không tách file lẻ -->
         <div style="background:rgba(34,197,94,0.12);border:2px solid #4ade80;border-radius:12px;padding:12px;margin-bottom:12px;">
-          <div style="font-weight:900;color:#86efac;margin-bottom:8px;font-size:0.95rem;">
-            💬 Cách 2: Gửi Thẳng Gói .ZIP Qua Zalo (Trên Điện Thoại)
+          <div style="font-weight:900;color:#86efac;margin-bottom:6px;font-size:0.95rem;">
+            💬 Cách 2: Gửi Qua Zalo (1 file .ZIP duy nhất)
           </div>
-          <button type="button" id="btnShareZaloZip" class="btn btn-zalo btn-lg btn-block" style="margin-bottom:10px;">
-            🚀 ĐÓNG GÓI .ZIP &amp; CHIA SẺ QUA ZALO / DRIVE APP
+          <div style="font-size:0.82rem;color:#dcfce7;margin-bottom:10px;line-height:1.45;">
+            Toàn bộ Excel, CSV, bản đồ và ảnh có Code được gói chung vào <strong>1 file .ZIP</strong> — gửi vào Zalo chỉ là 1 tệp, không bị tách file lung tung.
+          </div>
+          <button type="button" id="btnShareZaloZip" class="btn btn-zalo btn-lg btn-block" style="margin-bottom:8px;">
+            🚀 ĐÓNG GÓI 1 FILE .ZIP &amp; GỬI QUA ZALO
           </button>
-
-          <div class="form-grid-2 form-grid-2-mobile-stack">
-            <button type="button" id="btnDownloadZipOnly" class="btn btn-primary btn-sm">
-              💾 Tải gói .ZIP về máy
-            </button>
-            <button type="button" id="btnDownloadExcelOnly" class="btn btn-outline btn-sm">
-              📊 Tải riêng file Excel (.xlsx)
-            </button>
-            <button type="button" id="btnDownloadGeoJSONOnly" class="btn btn-outline btn-sm">
-              🌍 Tải bản đồ .GeoJSON &amp; .KML
-            </button>
-            <button type="button" id="btnDownloadMasterJSON2" class="btn btn-outline btn-sm">
-              🗂️ Tải DanhMuc_RuongDot1.json
-            </button>
-          </div>
+          <button type="button" id="btnDownloadZipOnly" class="btn btn-outline btn-sm btn-block">
+            💾 Lưu gói .ZIP vào máy (dự phòng khi không có mạng)
+          </button>
         </div>
+      </div>
+
+      <!-- Biên nhận xác nhận đã nộp / đã gửi (chỉ xem, không có link tải) -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">🧾 Biên Nhận Đã Nộp / Đã Gửi (chỉ xem)</div>
+          <span class="col-badge">Không tải lại được</span>
+        </div>
+        <div id="submitReceiptList" style="font-size:0.85rem;line-height:1.5;"></div>
       </div>
 
       <!-- Báo cáo nhanh dán vào nhóm Zalo -->
@@ -913,7 +860,7 @@
   <script src="./vendor/jszip.min.js"></script>
   <script src="./vendor/xlsx.full.min.js"></script>
   <script src="./vendor/qrcode.min.js"></script>
-  <script src="./data/presets_dbscl.js?v=3.7"></script>
-  <script src="./app.js?v=3.7"></script>
+  <script src="./data/presets_dbscl.js?v=3.8"></script>
+  <script src="./app.js?v=3.8"></script>
 </body>
 </html>

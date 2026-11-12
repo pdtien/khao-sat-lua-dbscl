@@ -1601,7 +1601,7 @@
             </div>
           </div>
           <p style="font-size:0.9rem;color:#fef08a;font-weight:700;">
-            Bấm <strong>"➕ BẤM QUA ĐIỂM MỚI (${nextStt})"</strong> để đi đo điểm tiếp theo, hoặc khi đi xong hết hãy vào <strong>Mục 4 (Xuất Sau Khi Đi)</strong> để đẩy lên Google Drive!
+            Bấm <strong>"➕ BẤM QUA ĐIỂM MỚI (${nextStt})"</strong> để đi đo điểm tiếp theo, hoặc khi đi xong hết hãy vào <strong>Mục 4 (Xuất Sau Khi Đi)</strong> để nộp dữ liệu!
           </p>
         `,
         buttons: [
@@ -1758,7 +1758,7 @@
         if (typeof onUploadProgress === 'function') onUploadProgress(100);
         return { ok: true, fallbackNoCors: true };
       } catch (err2) {
-        throw new Error('Lỗi gửi dữ liệu lên Google Drive: ' + (err.message || err2.message));
+        throw new Error('Lỗi gửi dữ liệu: ' + (err.message || err2.message));
       }
     }
   }
@@ -1793,11 +1793,11 @@
 
     state.isUploading = true;
     const steps = [
-      { text: `Bước 1/3: Đóng gói Excel (.xlsx) & nén ${photoCount} ảnh vào gói .ZIP (${records.length} điểm)`, status: 'running' },
-      { text: `Bước 2/3: Đẩy thẳng gói .ZIP & .XLSX lên thư mục Google Drive (KS-LUA-3-TINH)`, status: 'pending' },
-      { text: `Bước 3/3: Xác nhận file đã nằm trong Google Drive 100%`, status: 'pending' }
+      { text: `Bước 1/3: Đóng gói Excel & nén ${photoCount} ảnh có Code vào 1 gói .ZIP (${records.length} điểm)`, status: 'running' },
+      { text: `Bước 2/3: Nộp gói dữ liệu về kho chung (bảo mật)`, status: 'pending' },
+      { text: `Bước 3/3: Nhận biên nhận xác nhận từ máy chủ`, status: 'pending' }
     ];
-    renderProgressStepUI(`⏳ ĐANG ĐÓNG GÓI & ĐẨY THẲNG LÊN DRIVE...`, 5, steps);
+    renderProgressStepUI(`⏳ ĐANG ĐÓNG GÓI & NỘP DỮ LIỆU...`, 5, steps);
 
     try {
       const prefix = getBaseExportPrefix(records);
@@ -1812,9 +1812,7 @@
 
       steps[0].status = 'done';
       steps[1].status = 'running';
-      renderProgressStepUI(`🚀 ĐANG ĐẨY THẲNG LÊN GOOGLE DRIVE (45%)...`, 45, steps);
-
-      let driveLink = DRIVE_FOLDER_URL;
+      renderProgressStepUI(`🚀 ĐANG NỘP DỮ LIỆU (45%)...`, 45, steps);
 
       const zipBase64 = await blobToBase64(zipBlob);
       const xlsxBase64 = await blobToBase64(xlsxBlob);
@@ -1823,45 +1821,137 @@
         { zipName, zipBase64, xlsxName, xlsxBase64, surveyor: state.surveyorName, totalPlots: records.length },
         (upPct) => {
           const mapped = 45 + Math.round(upPct * 0.5);
-          renderProgressStepUI(`☁️ ĐANG ĐẨY LÊN GOOGLE DRIVE (${Math.round(upPct)}%)...`, mapped, steps);
+          renderProgressStepUI(`☁️ ĐANG NỘP DỮ LIỆU (${Math.round(upPct)}%)...`, mapped, steps);
         }
       );
-      if (res && res.result && res.result.zipUrl) driveLink = res.result.zipUrl;
+
+      // Chỉ dùng phản hồi để XÁC NHẬN đã nhận file — tuyệt đối không hiển thị / lưu đường dẫn tải về
+      const serverConfirmed = !!(res && res.result && (res.result.zipId || res.result.zipUrl));
+      const sizeKB = Math.round(zipBlob.size / 1024);
 
       steps[1].status = 'done';
-      steps[2].status = 'done';
+      steps[2].status = serverConfirmed ? 'done' : 'error';
+      steps[2].text = serverConfirmed
+        ? 'Bước 3/3: Máy chủ đã xác nhận nhận đủ gói dữ liệu'
+        : 'Bước 3/3: Đã gửi đi nhưng máy chủ chưa trả biên nhận (mạng chặn phản hồi)';
       const doneTime = formatShortTime(new Date().toISOString());
-      renderProgressStepUI(`🎉 ĐÃ ĐẨY THẲNG LÊN GOOGLE DRIVE XONG 100% (LÚC ${doneTime})!`, 100, steps);
+      renderProgressStepUI(
+        serverConfirmed ? `🎉 ĐÃ NỘP XONG 100% (LÚC ${doneTime})!` : `📨 ĐÃ GỬI ĐI (LÚC ${doneTime}) — CHƯA CÓ BIÊN NHẬN`,
+        100,
+        steps
+      );
       if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
 
-      showModal({
-        title: `🎉 ĐÃ ĐẨY THẲNG LÊN GOOGLE DRIVE (KS-LUA-3-TINH) XONG 100%!`,
-        html: `
-          <div style="background:rgba(34,197,94,0.18);border:2px solid #22c55e;border-radius:12px;padding:12px;margin-bottom:12px;line-height:1.55;">
-            <div style="font-size:1.05rem;font-weight:900;color:#4ade80;margin-bottom:6px;">
-              ✅ ĐÃ LƯU TRỰC TIẾP VÀO THƯ MỤC KS-LUA-3-TINH LÚC ${doneTime}
-            </div>
-            <div>📦 <strong>File gói nén:</strong> <code style="color:#facc15;">${zipName}</code></div>
-            <div>📊 <strong>File bảng biểu:</strong> <code style="color:#86efac;">${xlsxName}</code></div>
-            <div>🌾 <strong>Tổng số điểm:</strong> ${records.length} điểm (${photoCount} ảnh đóng dấu Code)</div>
-          </div>
-        `,
-        buttons: [
-          { label: 'Đóng', className: 'btn btn-outline btn-sm' },
-          {
-            label: '📂 Mở xem file trên Google Drive',
-            className: 'btn btn-yellow btn-sm',
-            onClick: () => window.open(driveLink, '_blank')
-          }
-        ]
+      const receipt = addSubmitReceipt({
+        channel: 'server',
+        confirmed: serverConfirmed,
+        fileName: zipName,
+        points: records.length,
+        photos: photoCount,
+        sizeKB,
+        stts: records.map(r => r.stt)
       });
+
+      showReceiptModal(receipt);
     } catch (err) {
       steps.forEach(s => { if (s.status === 'running') s.status = 'error'; });
-      renderProgressStepUI(`⚠️ LỖI ĐẨY LÊN DRIVE: ${err.message}`, 60, steps);
-      showToast('Lỗi đẩy lên Drive: ' + err.message, 'error');
+      renderProgressStepUI(`⚠️ LỖI KHI NỘP: ${err.message}`, 60, steps);
+      showToast('Lỗi khi nộp dữ liệu: ' + err.message, 'error');
     } finally {
       state.isUploading = false;
     }
+  }
+
+  // --- BIÊN NHẬN NỘP / GỬI (CHỈ XEM — KHÔNG LINK, KHÔNG TẢI LẠI) ---
+  function getSubmitReceipts() {
+    try {
+      const arr = JSON.parse(localStorage.getItem('ksl_submitReceipts') || '[]');
+      return Array.isArray(arr) ? arr : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function addSubmitReceipt(info) {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const code = `BN-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+    const receipt = {
+      code,
+      time: formatNowDateTime(),
+      surveyor: state.surveyorName,
+      ...info
+    };
+    const list = getSubmitReceipts();
+    list.unshift(receipt);
+    localStorage.setItem('ksl_submitReceipts', JSON.stringify(list.slice(0, 30)));
+    renderSubmitReceiptList();
+    return receipt;
+  }
+
+  function describeReceiptStatus(r) {
+    if (r.channel === 'server') {
+      return r.confirmed
+        ? { icon: '✅', label: 'ĐÃ NỘP — Máy chủ xác nhận', color: '#4ade80' }
+        : { icon: '📨', label: 'ĐÃ GỬI — Chưa có biên nhận máy chủ', color: '#fde047' };
+    }
+    if (r.channel === 'zalo') {
+      return { icon: '💬', label: 'ĐÃ CHUYỂN SANG ZALO (1 file .ZIP)', color: '#7dd3fc' };
+    }
+    return { icon: '💾', label: 'ĐÃ LƯU GÓI .ZIP VÀO MÁY', color: '#cbd5e1' };
+  }
+
+  function receiptDetailHTML(r) {
+    const st = describeReceiptStatus(r);
+    return `
+      <div style="background:rgba(34,197,94,0.12);border:2px solid ${st.color};border-radius:12px;padding:12px;line-height:1.6;">
+        <div style="font-size:1rem;font-weight:900;color:${st.color};margin-bottom:6px;">${st.icon} ${st.label}</div>
+        <div>🧾 <strong>Mã biên nhận:</strong> <code style="color:#facc15;">${r.code}</code></div>
+        <div>🕒 <strong>Thời gian:</strong> ${r.time}</div>
+        <div>👤 <strong>Người khảo sát:</strong> ${r.surveyor || ''}</div>
+        <div>📦 <strong>Gói dữ liệu:</strong> <code>${r.fileName}</code> (~${r.sizeKB || 0} KB)</div>
+        <div>🌾 <strong>Số điểm:</strong> ${r.points} điểm • 📸 <strong>Ảnh có Code:</strong> ${r.photos} ảnh</div>
+        ${r.stts && r.stts.length ? `<div style="word-break:break-word;">📍 <strong>Mã điểm:</strong> ${r.stts.join(', ')}</div>` : ''}
+      </div>
+      <p style="margin-top:10px;font-size:0.8rem;color:#94a3b8;">
+        🔒 Biên nhận chỉ để xem xác nhận. Vì bảo mật, máy không hiển thị đường dẫn kho dữ liệu và không tải lại được gói đã nộp.
+      </p>
+    `;
+  }
+
+  function showReceiptModal(r) {
+    const st = describeReceiptStatus(r);
+    showModal({
+      title: `${st.icon} BIÊN NHẬN ${r.code}`,
+      html: receiptDetailHTML(r),
+      buttons: [{ label: 'Đã xem xác nhận', className: 'btn btn-yellow btn-sm' }]
+    });
+  }
+
+  function renderSubmitReceiptList() {
+    const box = document.getElementById('submitReceiptList');
+    if (!box) return;
+    const list = getSubmitReceipts();
+    if (list.length === 0) {
+      box.innerHTML = `<div style="color:var(--text-secondary);">Chưa có lần nộp / gửi nào. Sau khi nộp, biên nhận sẽ hiện ở đây.</div>`;
+      return;
+    }
+    box.innerHTML = list.map((r, idx) => {
+      const st = describeReceiptStatus(r);
+      return `
+        <button type="button" data-receipt-idx="${idx}" style="display:block;width:100%;text-align:left;background:var(--bg-input);border:1.5px solid ${st.color};border-radius:10px;padding:8px 10px;margin-bottom:6px;color:var(--text-primary);cursor:pointer;">
+          <div style="font-weight:900;color:${st.color};">${st.icon} ${st.label}</div>
+          <div style="font-size:0.8rem;">🧾 ${r.code} • 🕒 ${r.time}</div>
+          <div style="font-size:0.8rem;">🌾 ${r.points} điểm • 📸 ${r.photos} ảnh • ~${r.sizeKB || 0} KB</div>
+        </button>
+      `;
+    }).join('');
+    box.querySelectorAll('[data-receipt-idx]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const r = getSubmitReceipts()[Number(btn.getAttribute('data-receipt-idx'))];
+        if (r) showReceiptModal(r);
+      });
+    });
   }
 
   // --- EXPORT WITH REAL-TIME 0% -> 100% PACKAGING PROGRESS AFTER THE FIELD TRIP ---
@@ -1944,45 +2034,33 @@
       );
       if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
 
+      const sizeKB = Math.round(blob.size / 1024);
+      const stts = records.map(r => r.stt);
+
       if (shareMode === 'zalo_share') {
+        // Chỉ chia sẻ ĐÚNG 1 FILE .ZIP (không kèm text) để Zalo nhận 1 tệp duy nhất, không bị tách lẻ
         const zipFile = new File([blob], fileName, { type: 'application/zip' });
         if (navigator.canShare && navigator.canShare({ files: [zipFile] })) {
-          await navigator.share({
-            title: `Khảo sát lúa Đợt 1 - ${state.surveyorName}`,
-            text: document.getElementById('zaloReportTextarea').value,
-            files: [zipFile]
-          });
-          showToast('✅ Đã mở bảng chia sẻ qua Zalo / Drive!');
+          try {
+            await navigator.share({ files: [zipFile] });
+          } catch (shareErr) {
+            if (shareErr && shareErr.name === 'AbortError') {
+              showToast('Đã hủy gửi qua Zalo', 'warn');
+              return;
+            }
+            throw shareErr;
+          }
+          const receipt = addSubmitReceipt({ channel: 'zalo', confirmed: true, fileName, points: records.length, photos: photoCount, sizeKB, stts });
+          showReceiptModal(receipt);
           return;
         }
+        showToast('Trình duyệt này không mở được Zalo trực tiếp — đã lưu 1 file .ZIP vào máy để gửi Zalo thủ công.', 'warn', 5000);
       }
 
-      // Download the ZIP file to device and show clear completion modal with 1-click button to open Google Drive folder KS-LUA-3-TINH
+      // Lưu đúng 1 file .ZIP vào máy (dự phòng) — không tách file lẻ
       triggerDownloadBlob(blob, fileName);
-
-      showModal({
-        title: `🎉 ĐÃ XUẤT XONG 100% GÓI .ZIP (${records.length} ĐIỂM)!`,
-        html: `
-          <div style="background:rgba(34,197,94,0.18);border:2px solid #22c55e;border-radius:12px;padding:12px;margin-bottom:12px;line-height:1.55;">
-            <div style="font-size:1.05rem;font-weight:900;color:#4ade80;margin-bottom:6px;">
-              ✅ ĐÃ TẢI XONG VỀ MÁY LÚC ${doneTime}
-            </div>
-            <div>📦 <strong>Tên file vừa tải về:</strong> <code style="color:#facc15;">${fileName}</code></div>
-            <div>📊 <strong>Gồm:</strong> ${records.length} điểm khảo sát (Excel 9 cột + CSV + KML/GeoJSON + ${photoCount} ảnh có Code)</div>
-          </div>
-          <p style="font-size:0.9rem;color:#fef08a;font-weight:800;">
-            👉 Bây giờ bạn có thể gửi file <code>${fileName}</code> qua Zalo, hoặc bấm nút dưới đây để mở thư mục Google Drive <strong>KS-LUA-3-TINH</strong> và tải file này lên!
-          </p>
-        `,
-        buttons: [
-          { label: 'Đóng', className: 'btn btn-outline btn-sm' },
-          {
-            label: '📂 Mở thư mục Google Drive (KS-LUA-3-TINH)',
-            className: 'btn btn-yellow btn-sm',
-            onClick: () => window.open(DRIVE_FOLDER_URL, '_blank')
-          }
-        ]
-      });
+      const receipt = addSubmitReceipt({ channel: 'local', confirmed: true, fileName, points: records.length, photos: photoCount, sizeKB, stts });
+      showReceiptModal(receipt);
     } catch (err) {
       if (err && err.name !== 'AbortError') {
         steps.forEach(s => { if (s.status === 'running') s.status = 'error'; });
@@ -2488,12 +2566,12 @@
       `🕒 Thời gian báo cáo: ${formatNowDateTime()}`,
       `✅ Tổng số điểm đã khảo sát: ${records.length} điểm`,
       `📍 Danh sách mã điểm (${records.length}): ${doneStts || 'Chưa có'}`,
-      `📂 Thư mục Google Drive nộp dữ liệu: ${DRIVE_FOLDER_URL}`,
-      `📦 File đính kèm: ${prefix}.zip`
+      `📦 Gói dữ liệu (1 file): ${prefix}.zip`
     ].join('\n');
 
     const reportArea = document.getElementById('zaloReportTextarea');
     if (reportArea) reportArea.value = reportText;
+    renderSubmitReceiptList();
   }
 
   // --- LIGHTBOX & QR MODAL ---
@@ -2861,7 +2939,7 @@
 
     // Tab 3: List controls
     document.getElementById('btnExportMasterJSON').addEventListener('click', exportMasterRegistryJSON);
-    document.getElementById('btnDownloadMasterJSON2').addEventListener('click', exportMasterRegistryJSON);
+    document.getElementById('btnDownloadMasterJSON2')?.addEventListener('click', exportMasterRegistryJSON);
 
     document.getElementById('inputImportMaster').addEventListener('change', (e) => {
       const f = e.target.files && e.target.files[0];
@@ -2949,10 +3027,6 @@
       });
     }
 
-    document.getElementById('btnUploadAllToDrive').addEventListener('click', () => {
-      exportAllAfterTripWithProgress('download_for_drive');
-    });
-
     document.getElementById('btnShareZaloZip').addEventListener('click', () => {
       exportAllAfterTripWithProgress('zalo_share');
     });
@@ -2961,21 +3035,7 @@
       exportAllAfterTripWithProgress('download_for_drive');
     });
 
-    document.getElementById('btnDownloadExcelOnly').addEventListener('click', () => {
-      const records = getAllSavedRecords();
-      const prefix = getBaseExportPrefix(records);
-      const buf = generateExcelWorkbookBuffer(records);
-      triggerDownloadBlob(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `${prefix}.xlsx`);
-      showToast(`Đã tải xuống ${prefix}.xlsx`);
-    });
-
-    document.getElementById('btnDownloadGeoJSONOnly').addEventListener('click', () => {
-      const records = getAllSavedRecords();
-      const prefix = getBaseExportPrefix(records);
-      triggerDownloadBlob(new Blob([generateGeoJSONString(records)], { type: 'application/geo+json;charset=utf-8' }), `${prefix}.geojson`);
-      triggerDownloadBlob(new Blob([generateKMLString(records)], { type: 'application/vnd.google-earth.kml+xml;charset=utf-8' }), `${prefix}.kml`);
-      showToast('Đã tải xuống file bản đồ .GeoJSON và .KML');
-    });
+    renderSubmitReceiptList();
 
     document.getElementById('btnCopyZaloReport').addEventListener('click', () => {
       const txt = document.getElementById('zaloReportTextarea').value;
@@ -2987,7 +3047,7 @@
 
   function registerServiceWorker() {
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-      navigator.serviceWorker.register('./sw.js?v=3.7').then(reg => {
+      navigator.serviceWorker.register('./sw.js?v=3.8').then(reg => {
         if (reg && reg.update) reg.update();
       }).catch(() => {});
     }
