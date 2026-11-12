@@ -11,7 +11,7 @@
   <link rel="icon" type="image/png" href="./icons/icon-192.png" />
   <link rel="apple-touch-icon" href="./icons/icon-192.png" />
   <link rel="stylesheet" href="./vendor/leaflet.css" />
-  <link rel="stylesheet" href="./styles.css?v=3.6" />
+  <link rel="stylesheet" href="./styles.css?v=3.7" />
   <script>
     (function () {
       try {
@@ -23,7 +23,7 @@
         if ('caches' in window) {
           caches.keys().then(function (keys) {
             keys.forEach(function (k) {
-              if (k.indexOf('khao-sat-lua-pwa-v') === 0 && k !== 'khao-sat-lua-pwa-v3.6') {
+              if (k.indexOf('khao-sat-lua-pwa-v') === 0 && k !== 'khao-sat-lua-pwa-v3.7') {
                 caches.delete(k);
               }
             });
@@ -186,7 +186,7 @@
           </button>
         </div>
 
-        <!-- Cột 2 (X - Kinh độ) & Cột 3 (Y - Vĩ độ) luôn cho phép sửa -->
+        <!-- Cột 2 (X - Kinh độ) & Cột 3 (Y - Vĩ độ) luôn cho phép sửa + Nút NHẤN CHỐT ĐIỂM TỌA ĐỘ ngay tại đây -->
         <div class="form-grid-2">
           <div class="form-group" style="margin-bottom:0;">
             <label for="coordXInput" class="form-label">
@@ -213,6 +213,23 @@
               class="form-input"
               placeholder="Bấm Định vị GPS hoặc chạm bản đồ"
             />
+          </div>
+        </div>
+
+        <!-- Nút NHẤN CHỐT TỌA ĐỘ ĐIỂM ngay tại khung GPS (Khóa X, Y không bị lệch & Lưu tọa độ ngay) -->
+        <div id="gpsLockAndSaveBox" style="margin-top:10px;padding:11px 12px;background:rgba(250,204,21,0.12);border:2px solid #facc15;border-radius:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <div id="gpsLockStatusLabel" style="font-size:0.86rem;font-weight:900;color:#fef08a;flex:1;min-width:180px;">
+              🔓 Tọa độ đang mở chỉnh sửa — Chỉnh xong X, Y hãy nhấn <strong>CHỐT ĐIỂM</strong>:
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;width:100%;margin-top:4px;">
+              <button type="button" id="btnLockCoordsHere" class="btn btn-yellow" style="flex:1;padding:10px 14px;font-size:0.95rem;font-weight:900;">
+                📌 NHẤN CHỐT TỌA ĐỘ ĐIỂM <span class="lbl-current-stt">CT01</span>
+              </button>
+              <button type="button" id="btnUnlockCoordsHere" class="btn btn-outline btn-sm" style="display:none;padding:10px 12px;font-size:0.84rem;border-color:#facc15;color:#fde047;">
+                🔓 Mở khóa sửa lại X, Y
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -246,7 +263,7 @@
           <div class="form-group">
             <label for="sowingDateInput" class="form-label">
               Cột 8 — Ngày sạ/cấy (dd/mm/yyyy)
-              <span class="form-sublabel">Nhập ngày xuống giống hoặc chọn ước lượng bên dưới</span>
+              <span class="form-sublabel">Nhập ngày hoặc nhấn "👁️ Ước lượng" để mở bảng chọn nhanh</span>
             </label>
             <div style="display:flex;gap:6px;align-items:center;">
               <input
@@ -263,13 +280,13 @@
               />
             </div>
 
-            <!-- Nguồn thông tin Ngày sạ/cấy: Ước lượng hay Gặp ND -->
+            <!-- Nguồn thông tin Ngày sạ/cấy: Nhấn vào Ước lượng mới hiện bảng ước lượng cho gọn form -->
             <div style="margin-top:8px;">
               <div style="font-size:0.78rem;font-weight:800;color:var(--text-secondary);margin-bottom:5px;">
-                Nguồn Ngày sạ/cấy (Bấm chọn: Ước lượng hay Gặp nông dân):
+                Nguồn Ngày sạ/cấy (Nhấn vào <strong>👁️ Ước lượng</strong> để mở bảng chọn tuổi lúa):
               </div>
               <div id="sowingSourceChips" class="chip-group">
-                <button type="button" class="chip-btn selected" data-sow-source="Ước lượng">👁️ Ước lượng (Nhìn lúa)</button>
+                <button type="button" id="btnSowSourceEstimate" class="chip-btn selected" data-sow-source="Ước lượng">👁️ Ước lượng (Nhấn mở bảng ▾)</button>
                 <button type="button" class="chip-btn" data-sow-source="Gặp ND">👨‍🌾 Gặp ND (Hỏi nông dân)</button>
                 <button type="button" class="chip-btn" data-sow-source="Chưa sạ / Chưa rõ">❓ Chưa sạ / Chưa rõ</button>
               </div>
@@ -278,10 +295,15 @@
           </div>
         </div>
 
-        <!-- Thanh công cụ ước lượng nhanh ngày sạ từ tuổi lúa (NSS) -->
-        <div style="margin-top:6px;padding:9px 11px;background:rgba(250,204,21,0.09);border:1.5px dashed rgba(250,204,21,0.45);border-radius:10px;">
-          <div style="font-size:0.8rem;font-weight:800;color:#fde047;margin-bottom:6px;">
-            ⚡ Ước lượng nhanh Ngày sạ/cấy theo tuổi lúa (Tự động trừ lùi ngày &amp; chọn "Ước lượng"):
+        <!-- Bảng ước lượng nhanh ngày sạ từ tuổi lúa (NSS) — Mặc định ẨN (display:none) để form gọn, nhấn "👁️ Ước lượng" mới hiện -->
+        <div id="quickEstimatePanel" style="display:none;margin-top:6px;padding:10px 12px;background:rgba(250,204,21,0.12);border:1.5px dashed #facc15;border-radius:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:6px;">
+            <div style="font-size:0.8rem;font-weight:800;color:#fde047;">
+              ⚡ Chọn tuổi lúa để tự tính Ngày sạ/cấy (chọn xong tự thu gọn):
+            </div>
+            <button type="button" id="btnCloseQuickEstimate" class="btn btn-outline btn-sm" style="padding:2px 8px;font-size:0.74rem;">
+              ✖ Thu gọn
+            </button>
           </div>
           <div id="quickEstimateSowGroup" class="chip-group">
             <button type="button" class="chip-btn" data-est-das="stage">🎯 Theo GĐ đang chọn</button>
@@ -298,8 +320,8 @@
           </div>
         </div>
 
-        <div id="dasHintBanner" style="margin-top:8px;padding:9px 12px;border-radius:10px;background:rgba(56,189,248,0.12);border:1.5px solid #38bdf8;font-size:0.86rem;font-weight:700;color:#e0f2fe;">
-          🌱 Nhập Ngày sạ/cấy hoặc bấm nút Ước lượng nhanh ở trên để tự động tính số ngày sau sạ (NSS / DAS).
+        <div id="dasHintBanner" style="margin-top:8px;padding:8px 11px;border-radius:10px;background:rgba(56,189,248,0.12);border:1.5px solid #38bdf8;font-size:0.84rem;font-weight:700;color:#e0f2fe;">
+          🌱 Nhấn <strong>👁️ Ước lượng</strong> để chọn nhanh tuổi lúa hoặc nhập <code>dd/mm/yyyy</code>.
         </div>
       </div>
 
@@ -471,9 +493,14 @@
       <div class="card card-highlight">
         <div class="card-header">
           <div class="card-title">📸 Cụm Chụp 3 Ảnh Thực Địa Có Đóng Dấu Mã Code</div>
-          <button type="button" id="btnGenerate3DemoPhotos" class="btn btn-outline btn-sm">
-            🖼️ Tạo 3 ảnh mẫu test
-          </button>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button type="button" id="btnClearCurrentPhotos" class="btn btn-danger btn-sm">
+              🗑️ Xóa sạch ảnh điểm này
+            </button>
+            <button type="button" id="btnGenerate3DemoPhotos" class="btn btn-outline btn-sm">
+              🖼️ Tạo 3 ảnh mẫu test
+            </button>
+          </div>
         </div>
 
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;font-size:0.84rem;color:var(--text-secondary);">
@@ -886,7 +913,7 @@
   <script src="./vendor/jszip.min.js"></script>
   <script src="./vendor/xlsx.full.min.js"></script>
   <script src="./vendor/qrcode.min.js"></script>
-  <script src="./data/presets_dbscl.js?v=3.6"></script>
-  <script src="./app.js?v=3.6"></script>
+  <script src="./data/presets_dbscl.js?v=3.7"></script>
+  <script src="./app.js?v=3.7"></script>
 </body>
 </html>

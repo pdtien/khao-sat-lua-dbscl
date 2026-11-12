@@ -67,6 +67,8 @@
     surveyRecords: new Map(),
     currentPlotStt: 'CT01',
     isCurrentFormDirty: false,
+    isCoordLocked: false,
+    photoStampGeneration: 0,
     isUploading: false,
     currentPhotos: {
       TongQuan: null,
@@ -477,6 +479,18 @@
     });
   }
 
+  function toggleQuickEstimatePanel(forceState) {
+    const panel = document.getElementById('quickEstimatePanel');
+    const btnEst = document.getElementById('btnSowSourceEstimate');
+    if (!panel) return;
+    const isCurrentlyOpen = panel.style.display !== 'none';
+    const nextOpen = typeof forceState === 'boolean' ? forceState : !isCurrentlyOpen;
+    panel.style.display = nextOpen ? 'block' : 'none';
+    if (btnEst) {
+      btnEst.innerHTML = nextOpen ? '👁️ Ước lượng (Thu gọn ▴)' : '👁️ Ước lượng (Nhấn mở bảng ▾)';
+    }
+  }
+
   function setSowingSource(sourceVal, markDirty = false) {
     const clean = sourceVal || 'Ước lượng';
     const inp = document.getElementById('sowingSourceInput');
@@ -486,14 +500,17 @@
     });
     updateCombinedNotePreview();
     updateDASAndStageHints();
-    if (markDirty) markFormDirty();
-    reStampExistingPhotos();
+    if (markDirty) {
+      markFormDirty();
+      reStampExistingPhotos();
+    }
   }
 
   function estimateSowingDateByDAS(dasValue) {
     if (dasValue === 'clear') {
       document.getElementById('sowingDateInput').value = '';
       setSowingSource('Chưa sạ / Chưa rõ', true);
+      toggleQuickEstimatePanel(false);
       showToast('🧹 Đã xóa ngày sạ (Chưa sạ / Đã thu hoạch)');
       return;
     }
@@ -504,6 +521,7 @@
       if (!stObj || stObj.defaultDas === null) {
         document.getElementById('sowingDateInput').value = '';
         setSowingSource('Chưa sạ / Chưa rõ', true);
+        toggleQuickEstimatePanel(false);
         showToast('Giai đoạn hiện tại là Chưa sạ / Đã thu hoạch nên để trống Ngày sạ!');
         return;
       }
@@ -522,6 +540,7 @@
 
     document.getElementById('sowingDateInput').value = formatted;
     setSowingSource('Ước lượng', true);
+    toggleQuickEstimatePanel(false);
     showToast(`⚡ Đã ước lượng Ngày sạ: ${formatted} (~${days} ngày trước)`);
   }
 
@@ -606,8 +625,10 @@
       section.style.display = 'none';
       document.getElementById('waterAvgOutput').value = '';
     }
-    if (markDirty) markFormDirty();
-    reStampExistingPhotos();
+    if (markDirty) {
+      markFormDirty();
+      reStampExistingPhotos();
+    }
   }
 
   function recalcWaterAverage() {
@@ -702,10 +723,96 @@
     });
   }
 
+  function setCoordLockState(locked) {
+    state.isCoordLocked = Boolean(locked);
+    const xInput = document.getElementById('coordXInput');
+    const yInput = document.getElementById('coordYInput');
+    const box = document.getElementById('gpsLockAndSaveBox');
+    const lbl = document.getElementById('gpsLockStatusLabel');
+    const btnLock = document.getElementById('btnLockCoordsHere');
+    const btnUnlock = document.getElementById('btnUnlockCoordsHere');
+    const stt = normalizeStt(document.getElementById('sttInput')?.value || state.currentPlotStt);
+
+    if (xInput && yInput) {
+      xInput.readOnly = state.isCoordLocked;
+      yInput.readOnly = state.isCoordLocked;
+      xInput.style.borderColor = state.isCoordLocked ? '#22c55e' : '';
+      yInput.style.borderColor = state.isCoordLocked ? '#22c55e' : '';
+    }
+
+    if (state.isCoordLocked) {
+      if (box) {
+        box.style.background = 'rgba(34, 197, 94, 0.22)';
+        box.style.borderColor = '#22c55e';
+      }
+      if (lbl) {
+        lbl.style.color = '#86efac';
+        lbl.innerHTML = `🔒 <strong>ĐÃ CHỐT TỌA ĐỘ ĐIỂM ${stt}</strong> (X=${xInput?.value || ''}, Y=${yInput?.value || ''}) — Đã khóa chống chạm nhầm!`;
+      }
+      if (btnLock) {
+        btnLock.innerHTML = `✅ ĐÃ CHỐT ĐIỂM ${stt} (Bấm để lưu cập nhật)`;
+        btnLock.style.background = '#22c55e';
+        btnLock.style.color = '#052e16';
+      }
+      if (btnUnlock) {
+        btnUnlock.style.display = 'inline-flex';
+      }
+    } else {
+      if (box) {
+        box.style.background = 'rgba(250, 204, 21, 0.12)';
+        box.style.borderColor = '#facc15';
+      }
+      if (lbl) {
+        lbl.style.color = '#fef08a';
+        lbl.innerHTML = `🔓 Tọa độ đang mở chỉnh sửa — Chỉnh xong X, Y hãy nhấn <strong>CHỐT ĐIỂM</strong>:`;
+      }
+      if (btnLock) {
+        btnLock.innerHTML = `📌 NHẤN CHỐT TỌA ĐỘ ĐIỂM <span class="lbl-current-stt">${stt}</span>`;
+        btnLock.style.background = '';
+        btnLock.style.color = '';
+      }
+      if (btnUnlock) {
+        btnUnlock.style.display = 'none';
+      }
+    }
+    refreshMapMarkers();
+  }
+
+  async function handleLockAndSaveCoordsAtGpsBox() {
+    const stt = normalizeStt(document.getElementById('sttInput').value);
+    const xInput = document.getElementById('coordXInput');
+    const yInput = document.getElementById('coordYInput');
+    const xVal = parseFloat(xInput.value);
+    const yVal = parseFloat(yInput.value);
+
+    if (isNaN(xVal) || isNaN(yVal)) {
+      showToast(`⚠️ Điểm ${stt} chưa có tọa độ X, Y! Hãy bấm "📍 ĐỊNH VỊ GPS TẠI ĐÂY" hoặc chạm vào bản đồ vệ tinh trước.`, 'warn');
+      return;
+    }
+
+    xInput.value = Number(xVal).toFixed(6);
+    yInput.value = Number(yVal).toFixed(6);
+    setCoordLockState(true);
+
+    const rec = await handleSaveSurveyRecord({ silentPopup: true });
+    if (rec) {
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+      showToast(`📌 Đã CHỐT khóa tọa độ (X=${rec.x}, Y=${rec.y}) & Lưu điểm ${stt} vào máy!`);
+    }
+  }
+
   function selectPlotIntoForm(sttRaw, options = {}) {
     const stt = normalizeStt(sttRaw);
     state.currentPlotStt = stt;
     state.isCurrentFormDirty = false;
+    state.photoStampGeneration = (state.photoStampGeneration || 0) + 1;
+
+    // 1. Luôn làm sạch hoàn toàn bộ nhớ ảnh và input file trước tiên để ảnh Điểm 1 không bao giờ dính sang Điểm 2
+    state.currentPhotos = { TongQuan: null, Can1: null, Can2: null };
+    document.querySelectorAll('[data-photo-input]').forEach(inp => {
+      inp.value = '';
+    });
+    toggleQuickEstimatePanel(false);
 
     document.getElementById('sttInput').value = stt;
     const quickSel = document.getElementById('plotSelectQuick');
@@ -716,14 +823,16 @@
 
     const xInput = document.getElementById('coordXInput');
     const yInput = document.getElementById('coordYInput');
-    xInput.readOnly = false;
-    yInput.readOnly = false;
 
     if (existingRec) {
       xInput.value = Number(existingRec.x).toFixed(6);
       yInput.value = Number(existingRec.y).toFixed(6);
+      setCoordLockState(true);
+
       document.getElementById('surveyDateTimeInput').value = existingRec.surveyDateTime || formatNowDateTime();
       document.getElementById('sowingDateInput').value = existingRec.sowingDate || '';
+      const pickerEl = document.getElementById('sowingDatePicker');
+      if (pickerEl) pickerEl.value = '';
       setSowingSource(existingRec.sowingSource || (existingRec.sowingDate ? 'Ước lượng' : 'Chưa sạ / Chưa rõ'), false);
       document.getElementById('selectedStageInput').value = String(existingRec.growthStage !== undefined ? existingRec.growthStage : 3);
       const stageNoteEl = document.getElementById('stageNoteInput');
@@ -746,40 +855,41 @@
         Can2: existingRec.photos && existingRec.photos.Can2 ? { ...existingRec.photos.Can2 } : null
       };
     } else {
+      // Điểm mới chưa lưu -> Làm sạch toàn bộ phiếu (Tọa độ mở khóa, Ngày sạ trống, Nước trống, 3 Ảnh sạch 100%)
       if (master && master.x && master.y) {
         xInput.value = Number(master.x).toFixed(6);
         yInput.value = Number(master.y).toFixed(6);
-      } else if (state.userGPS.x !== null && state.userGPS.y !== null) {
-        xInput.value = Number(state.userGPS.x).toFixed(6);
-        yInput.value = Number(state.userGPS.y).toFixed(6);
       } else {
         xInput.value = '';
         yInput.value = '';
       }
+      setCoordLockState(false);
 
       document.getElementById('surveyDateTimeInput').value = formatNowDateTime();
+      const pickerEl = document.getElementById('sowingDatePicker');
+      if (pickerEl) pickerEl.value = '';
+
       if (master && master.sowingDate) {
         document.getElementById('sowingDateInput').value = master.sowingDate;
         setSowingSource(master.sowingSource || 'Ước lượng', false);
       } else {
-        setSowingSource(document.getElementById('sowingSourceInput')?.value || 'Ước lượng', false);
-      }
-      if (master && master.variety) {
-        document.getElementById('varietyInput').value = master.variety;
-      } else if (!document.getElementById('varietyInput').value) {
-        document.getElementById('varietyInput').value = 'Chưa biết';
-      }
-      if (master && master.method) {
-        document.getElementById('methodInput').value = master.method;
-      } else if (!document.getElementById('methodInput').value) {
-        document.getElementById('methodInput').value = 'Sạ hàng';
+        document.getElementById('sowingDateInput').value = '';
+        setSowingSource('Ước lượng', false);
       }
 
-      document.getElementById('roundExtraNoteInput').value = '';
+      document.getElementById('selectedStageInput').value = '3';
+      const stageNoteEl = document.getElementById('stageNoteInput');
+      if (stageNoteEl) stageNoteEl.value = 'Đang có lúa';
+
+      setWaterRegime('1', false);
       document.getElementById('waterM1').value = '';
       document.getElementById('waterM2').value = '';
       document.getElementById('waterM3').value = '';
       document.getElementById('waterAvgOutput').value = '';
+
+      document.getElementById('varietyInput').value = (master && master.variety) ? master.variety : 'Chưa biết';
+      document.getElementById('methodInput').value = (master && master.method) ? master.method : 'Sạ hàng';
+      document.getElementById('roundExtraNoteInput').value = '';
 
       state.currentPhotos = { TongQuan: null, Can1: null, Can2: null };
 
@@ -885,6 +995,10 @@
 
     state.miniMarkersLayer = L.layerGroup().addTo(state.miniMap);
     state.miniMap.on('click', (e) => {
+      if (state.isCoordLocked) {
+        showToast('🔒 Tọa độ điểm này đã CHỐT khóa! Bấm "🔓 Mở khóa sửa lại X, Y" nếu muốn dời vị trí.', 'warn');
+        return;
+      }
       setFormCoordinates(e.latlng.lng, e.latlng.lat, true);
     });
 
@@ -903,6 +1017,10 @@
 
     state.fullMarkersLayer = L.layerGroup().addTo(state.fullMap);
     state.fullMap.on('click', (e) => {
+      if (state.isCoordLocked) {
+        showToast('🔒 Tọa độ điểm này đã CHỐT khóa! Bấm "🔓 Mở khóa sửa lại X, Y" nếu muốn dời vị trí.', 'warn');
+        return;
+      }
       setFormCoordinates(e.latlng.lng, e.latlng.lat, true);
     });
 
@@ -984,14 +1102,16 @@
         </div>
       `;
 
-      const fMarker = L.marker([lat, lon], { icon, draggable: isSelected }).bindPopup(popupHTML);
+      const canDrag = isSelected && !state.isCoordLocked;
+
+      const fMarker = L.marker([lat, lon], { icon, draggable: canDrag }).bindPopup(popupHTML);
       fMarker.on('dragend', (ev) => {
         const pos = ev.target.getLatLng();
         setFormCoordinates(pos.lng, pos.lat, true);
       });
       state.fullMarkersLayer.addLayer(fMarker);
 
-      const mMarker = L.marker([lat, lon], { icon, draggable: isSelected }).bindPopup(popupHTML);
+      const mMarker = L.marker([lat, lon], { icon, draggable: canDrag }).bindPopup(popupHTML);
       mMarker.on('dragend', (ev) => {
         const pos = ev.target.getLatLng();
         setFormCoordinates(pos.lng, pos.lat, true);
@@ -1206,11 +1326,15 @@
 
   async function handlePhotoFileInput(file, typeKey) {
     if (!file) return;
+    const myGen = state.photoStampGeneration;
+    const myStt = state.currentPlotStt;
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
+        if (state.photoStampGeneration !== myGen || state.currentPlotStt !== myStt) return;
         const rawDataUrl = e.target.result;
         const stamped = await stampImageWithCode(rawDataUrl, typeKey);
+        if (state.photoStampGeneration !== myGen || state.currentPlotStt !== myStt) return;
         state.currentPhotos[typeKey] = stamped;
         markFormDirty();
         updatePhotoCardsUI();
@@ -1223,15 +1347,21 @@
   }
 
   async function reStampExistingPhotos() {
+    const myGen = state.photoStampGeneration;
+    const myStt = state.currentPlotStt;
     for (const typeKey of Object.keys(PHOTO_TYPES)) {
       const existing = state.currentPhotos[typeKey];
       if (existing && existing.rawDataUrl) {
-        existing.fileName = getPhotoFileName(typeKey);
         const updated = await stampImageWithCode(existing.rawDataUrl, typeKey);
+        if (state.photoStampGeneration !== myGen || state.currentPlotStt !== myStt || state.currentPhotos[typeKey] !== existing) {
+          return;
+        }
         state.currentPhotos[typeKey] = updated;
       }
     }
-    updatePhotoCardsUI();
+    if (state.photoStampGeneration === myGen && state.currentPlotStt === myStt) {
+      updatePhotoCardsUI();
+    }
   }
 
   function updatePhotoCardsUI() {
@@ -2497,7 +2627,23 @@
       handleGoToNewPoint();
     });
 
-    document.getElementById('btnGetGPS').addEventListener('click', () => requestCurrentGPS(true));
+    document.getElementById('btnGetGPS').addEventListener('click', () => {
+      setCoordLockState(false);
+      requestCurrentGPS(true);
+    });
+
+    const btnLockHere = document.getElementById('btnLockCoordsHere');
+    if (btnLockHere) {
+      btnLockHere.addEventListener('click', handleLockAndSaveCoordsAtGpsBox);
+    }
+
+    const btnUnlockHere = document.getElementById('btnUnlockCoordsHere');
+    if (btnUnlockHere) {
+      btnUnlockHere.addEventListener('click', () => {
+        setCoordLockState(false);
+        showToast('🔓 Đã mở khóa tọa độ X, Y! Bạn có thể sửa tay hoặc kéo ghim trên bản đồ.');
+      });
+    }
 
     document.getElementById('btnOpenGMapsForm').addEventListener('click', () => {
       const x = parseFloat(document.getElementById('coordXInput').value);
@@ -2548,9 +2694,25 @@
 
     document.querySelectorAll('#sowingSourceChips .chip-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        setSowingSource(btn.getAttribute('data-sow-source'), true);
+        const src = btn.getAttribute('data-sow-source');
+        if (src === 'Ước lượng') {
+          setSowingSource('Ước lượng', true);
+          toggleQuickEstimatePanel();
+        } else if (src === 'Chưa sạ / Chưa rõ') {
+          document.getElementById('sowingDateInput').value = '';
+          setSowingSource('Chưa sạ / Chưa rõ', true);
+          toggleQuickEstimatePanel(false);
+        } else {
+          setSowingSource(src, true);
+          toggleQuickEstimatePanel(false);
+        }
       });
     });
+
+    const btnCloseQuickEst = document.getElementById('btnCloseQuickEstimate');
+    if (btnCloseQuickEst) {
+      btnCloseQuickEst.addEventListener('click', () => toggleQuickEstimatePanel(false));
+    }
 
     document.querySelectorAll('#quickEstimateSowGroup .chip-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -2632,6 +2794,18 @@
         if (p && p.stampedDataUrl) openLightbox(p, tk);
       });
     });
+
+    const btnClearPhotos = document.getElementById('btnClearCurrentPhotos');
+    if (btnClearPhotos) {
+      btnClearPhotos.addEventListener('click', () => {
+        state.photoStampGeneration = (state.photoStampGeneration || 0) + 1;
+        state.currentPhotos = { TongQuan: null, Can1: null, Can2: null };
+        document.querySelectorAll('[data-photo-input]').forEach(inp => { inp.value = ''; });
+        updatePhotoCardsUI();
+        markFormDirty();
+        showToast(`🗑️ Đã xóa sạch 3 ảnh của điểm ${state.currentPlotStt}`);
+      });
+    }
 
     document.getElementById('btnGenerate3DemoPhotos').addEventListener('click', generateDemoPhotosForCurrentPlot);
 
@@ -2813,7 +2987,7 @@
 
   function registerServiceWorker() {
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-      navigator.serviceWorker.register('./sw.js?v=3.6').then(reg => {
+      navigator.serviceWorker.register('./sw.js?v=3.7').then(reg => {
         if (reg && reg.update) reg.update();
       }).catch(() => {});
     }
