@@ -1,0 +1,26 @@
+{
+  "name": "Khảo Sát Lúa 3 Vùng ĐBSCL (Cần Thơ • Đồng Tháp • Trà Vinh) - Đợt 1",
+  "short_name": "KS Lúa 3 Vùng",
+  "description": "Ứng dụng PWA khảo sát lúa thực địa 3 vùng (Cần Thơ CT, Đồng Tháp DT, Trà Vinh TV — 50 điểm/vùng), tự động nhận diện vùng theo GPS + chọn tay, chụp 3 ảnh đóng dấu mã vùng và xuất gói .ZIP / nộp bảo mật.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0b1911",
+  "theme_color": "#0f5132",
+  "lang": "vi-VN",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
