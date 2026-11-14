@@ -10,11 +10,43 @@
   // --- CONSTANTS & CATALOGS ---
   const DB_NAME = 'KhaoSatLua_Dot1_DB_v3';
   const DB_VERSION = 1;
-  const TOTAL_TARGET_PLOTS = 50;
+  const REGION_TARGET_PLOTS = 50;
+  const TOTAL_TARGET_PLOTS = 150;
   const CURRENT_ROUND = 1;
   const DRIVE_FOLDER_ID = '1N74C2GaXeEFN5C8oAbNU3amc0Y6fPASL';
   const DRIVE_FOLDER_URL = 'https://drive.google.com/drive/folders/1N74C2GaXeEFN5C8oAbNU3amc0Y6fPASL?usp=sharing';
   const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbxm1wvub6wh1WH3Mg3-dqgBsOHWOsrdcNu8fNjvha2-2vfcTZqClMVUy6e-U730KV666w/exec';
+
+  const REGION_ORDER = ['CAN_THO', 'DONG_THAP', 'TRA_VINH'];
+  const REGION_CONFIGS = {
+    CAN_THO: {
+      maNhom: 'CAN_THO',
+      khuVuc: 'Cần Thơ',
+      khuVucUpper: 'CẦN THƠ',
+      shortCode: 'CT',
+      target: REGION_TARGET_PLOTS,
+      color: '#16a34a',
+      center: [10.1500, 105.5400]
+    },
+    DONG_THAP: {
+      maNhom: 'DONG_THAP',
+      khuVuc: 'Đồng Tháp',
+      khuVucUpper: 'ĐỒNG THÁP',
+      shortCode: 'DT',
+      target: REGION_TARGET_PLOTS,
+      color: '#0284c7',
+      center: [10.5500, 105.7000]
+    },
+    TRA_VINH: {
+      maNhom: 'TRA_VINH',
+      khuVuc: 'Trà Vinh',
+      khuVucUpper: 'TRÀ VINH',
+      shortCode: 'TV',
+      target: REGION_TARGET_PLOTS,
+      color: '#d97706',
+      center: [9.8400, 106.3500]
+    }
+  };
 
   const RICE_STAGES = [
     { code: 0, vi: 'Chưa sạ / Làm đất', en: 'Not sown / Land prep', dasRange: 'Chưa xuống giống', defaultDas: null },
@@ -57,15 +89,26 @@
     return DEFAULT_GAS_URL;
   }
 
+  const savedInitialRegion = localStorage.getItem('ksl_lastRegion');
+  const initialRegion = REGION_CONFIGS[savedInitialRegion] ? savedInitialRegion : 'CAN_THO';
+
   const state = {
     db: null,
-    surveyorName: localStorage.getItem('ksl_surveyorName') || 'Nguyễn Văn Minh',
+    surveyorName: localStorage.getItem('ksl_surveyorName') || '',
+    surveyorDate: localStorage.getItem('ksl_surveyorDate') || '',
+    isEditingSurveyor: false,
+    currentRegion: initialRegion,
+    regionManuallyPinned: false,
+    lastGpsRegion: null,
+    listRegionFilter: 'ALL',
+    exportRegionFilter: 'ALL',
+    showBoundaries: localStorage.getItem('ksl_showBoundaries') !== 'false',
     saveRawPhotos: localStorage.getItem('ksl_saveRawPhotos') === 'true',
     themeLight: localStorage.getItem('ksl_themeLight') === 'true',
     gasWebAppUrl: getValidGasUrl(localStorage.getItem('ksl_gasWebAppUrl')),
     masterPlots: new Map(),
     surveyRecords: new Map(),
-    currentPlotStt: 'CT01',
+    currentPlotStt: `${REGION_CONFIGS[initialRegion].shortCode}01`,
     isCurrentFormDirty: false,
     isCoordLocked: false,
     photoStampGeneration: 0,
@@ -86,12 +129,166 @@
     fullMap: null,
     miniMarkersLayer: null,
     fullMarkersLayer: null,
+    miniBoundariesLayer: null,
+    fullBoundariesLayer: null,
     userMiniCircle: null,
     userFullCircle: null,
     lightboxActiveType: null
   };
 
-  // --- UTILITY FUNCTIONS ---
+  // --- UTILITY & 3-REGION FUNCTIONS ---
+  function getTodayVNDateStr() {
+    const d = new Date();
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return `${dd}/${mm}/${d.getFullYear()}`;
+  }
+
+  function isSurveyorConfirmedToday() {
+    return Boolean((state.surveyorName || '').trim() && state.surveyorDate === getTodayVNDateStr());
+  }
+
+  function confirmSurveyorForToday(nameRaw) {
+    const clean = (nameRaw || '').trim();
+    if (!clean) return false;
+    const today = getTodayVNDateStr();
+    state.surveyorName = clean;
+    state.surveyorDate = today;
+    state.isEditingSurveyor = false;
+    localStorage.setItem('ksl_surveyorName', clean);
+    localStorage.setItem('ksl_surveyorDate', today);
+    updateSurveyorHeaderUI();
+    reStampExistingPhotos();
+    updateExportPreviewUI();
+    return true;
+  }
+
+  function updateSurveyorHeaderUI() {
+    const confirmed = isSurveyorConfirmedToday() && !state.isEditingSurveyor;
+    const lockedBox = document.getElementById('surveyorLockedBox');
+    const editRow = document.getElementById('surveyorEditRow');
+    const lockedName = document.getElementById('surveyorLockedName');
+    const lockedDate = document.getElementById('surveyorLockedDate');
+    const input = document.getElementById('surveyorInput');
+    const badge = document.getElementById('surveyorCodeBadge');
+
+    if (badge) {
+      badge.textContent = state.surveyorName.trim() ? getSurveyorCode(state.surveyorName) : 'Chưa nhập';
+    }
+    if (input && document.activeElement !== input) {
+      input.value = state.surveyorName || '';
+    }
+    if (lockedBox && editRow) {
+      if (confirmed) {
+        lockedBox.style.display = 'flex';
+        editRow.style.display = 'none';
+        if (lockedName) lockedName.textContent = state.surveyorName;
+        if (lockedDate) lockedDate.textContent = state.surveyorDate;
+      } else {
+        lockedBox.style.display = 'none';
+        editRow.style.display = 'flex';
+      }
+    }
+  }
+
+  function maybePromptSurveyorOnceToday() {
+    if (isSurveyorConfirmedToday()) return;
+    const today = getTodayVNDateStr();
+    const prevName = (state.surveyorName || '').trim();
+    showModal({
+      title: `👤 Xác nhận Người Khảo Sát (${today})`,
+      html: `
+        <p style="margin-bottom:10px;line-height:1.45;">
+          ${prevName
+            ? `Hôm nay ngày <strong>${today}</strong>. Bạn có tiếp tục khảo sát dưới tên <strong style="color:#facc15;">${prevName}</strong> không?`
+            : `Vui lòng nhập <strong>Họ tên người khảo sát</strong> cho ngày <strong>${today}</strong>.`
+          }
+          <br/><span style="font-size:0.82rem;color:#86efac;">(Chỉ cần xác nhận 1 lần — các điểm 2, 3... hôm nay sẽ không hỏi lại!)</span>
+        </p>
+        <input
+          type="text"
+          id="modalSurveyorNameInput"
+          class="form-input"
+          value="${prevName.replace(/"/g, '&quot;')}"
+          placeholder="Nhập họ tên (VD: Nguyễn Văn Minh)..."
+          autocomplete="off"
+        />
+      `,
+      buttons: [
+        {
+          label: prevName ? `✅ Đúng tôi (${prevName})` : '✅ Xác nhận & Bắt đầu',
+          className: 'btn btn-yellow btn-sm',
+          onClick: () => {
+            const val = document.getElementById('modalSurveyorNameInput')?.value || prevName;
+            if (!confirmSurveyorForToday(val)) {
+              showToast('⚠️ Bạn chưa nhập tên người khảo sát — có thể nhập ở ô trên đầu trang.', 'warn');
+              return;
+            }
+            showToast(`✅ Đã chốt tên "${val.trim()}" cho cả ngày ${today}!`);
+          }
+        }
+      ]
+    });
+  }
+
+  function getRegionMeta(maNhom) {
+    return REGION_CONFIGS[maNhom] || REGION_CONFIGS.CAN_THO;
+  }
+
+  function detectRegionFromStt(sttRaw) {
+    const up = (sttRaw || '').toString().trim().toUpperCase();
+    if (up.startsWith('CT')) return 'CAN_THO';
+    if (up.startsWith('DT')) return 'DONG_THAP';
+    if (up.startsWith('TV')) return 'TRA_VINH';
+    return null;
+  }
+
+  function pointInRing(lon, lat, ring) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const xi = ring[i][0], yi = ring[i][1];
+      const xj = ring[j][0], yj = ring[j][1];
+      const intersect = ((yi > lat) !== (yj > lat)) &&
+        (lon < ((xj - xi) * (lat - yi)) / ((yj - yi) || 1e-12) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  }
+
+  function detectRegionByCoords(lonRaw, latRaw) {
+    const lon = parseFloat(lonRaw);
+    const lat = parseFloat(latRaw);
+    if (isNaN(lon) || isNaN(lat) || !window.DBSCL_REGION_BOUNDS) return null;
+
+    for (const maNhom of REGION_ORDER) {
+      const entry = window.DBSCL_REGION_BOUNDS[maNhom];
+      if (!entry || !entry.bbox || !Array.isArray(entry.polygons)) continue;
+      const [minx, miny, maxx, maxy] = entry.bbox;
+      if (lon < minx || lon > maxx || lat < miny || lat > maxy) continue;
+      for (const ring of entry.polygons) {
+        if (pointInRing(lon, lat, ring)) {
+          return {
+            maNhom: entry.maNhom,
+            khuVuc: entry.khuVuc,
+            shortCode: entry.shortCode
+          };
+        }
+      }
+    }
+    return null;
+  }
+
+  function resolveRecordRegion(item) {
+    if (item && REGION_CONFIGS[item.maNhom]) return item.maNhom;
+    const byStt = detectRegionFromStt(item && item.stt);
+    if (byStt) return byStt;
+    if (item && item.x !== undefined && item.y !== undefined) {
+      const byCoords = detectRegionByCoords(item.x, item.y);
+      if (byCoords) return byCoords.maNhom;
+    }
+    return 'CAN_THO';
+  }
+
   function removeVietnameseTones(str) {
     if (!str) return '';
     return str
@@ -115,14 +312,16 @@
     return (lastName.charAt(0).toUpperCase() + lastName.slice(1) + initials).slice(0, 14);
   }
 
-  function normalizeStt(val) {
+  function normalizeStt(val, regionOverride) {
     const raw = (val || '').toString().trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
-    if (!raw) return 'CT01';
+    const regionCode = REGION_CONFIGS[regionOverride] ? regionOverride : state.currentRegion;
+    const defPrefix = getRegionMeta(regionCode).shortCode;
+    if (!raw) return `${defPrefix}01`;
     if (/^\d+$/.test(raw)) {
       const n = parseInt(raw, 10);
-      return 'CT' + String(n).padStart(2, '0');
+      return `${defPrefix}${String(n).padStart(2, '0')}`;
     }
-    const match = raw.match(/^([A-Z]+)(\d+)$/);
+    const match = raw.match(/^([A-Z_-]+?)(\d+)$/);
     if (match && match[2].length === 1) {
       return match[1] + '0' + match[2];
     }
@@ -131,17 +330,26 @@
 
   function getNextSttCode(currentStt) {
     const norm = normalizeStt(currentStt);
-    const match = norm.match(/^([A-Z_-]+)(\d+)$/);
+    const match = norm.match(/^([A-Z_-]+?)(\d+)$/);
     if (match) {
       const prefix = match[1];
       const nextNum = parseInt(match[2], 10) + 1;
-      for (let n = nextNum; n <= Math.max(TOTAL_TARGET_PLOTS, nextNum + 1); n++) {
+      for (let n = nextNum; n <= Math.max(REGION_TARGET_PLOTS, nextNum + 1); n++) {
         const candidate = `${prefix}${String(n).padStart(2, '0')}`;
         if (!getRecord(candidate)) return candidate;
       }
       return `${prefix}${String(nextNum).padStart(2, '0')}`;
     }
-    return 'CT02';
+    return `${getRegionMeta(state.currentRegion).shortCode}02`;
+  }
+
+  function getFirstUnsavedSttForRegion(regionCode) {
+    const prefix = getRegionMeta(regionCode).shortCode;
+    for (let i = 1; i <= REGION_TARGET_PLOTS; i++) {
+      const code = `${prefix}${String(i).padStart(2, '0')}`;
+      if (!getRecord(code)) return code;
+    }
+    return `${prefix}${String(REGION_TARGET_PLOTS + 1).padStart(2, '0')}`;
   }
 
   function formatNowDateTime() {
@@ -324,18 +532,51 @@
     return state.surveyRecords.get(`R1_${normalizeStt(stt)}`) || null;
   }
 
-  function getAllSavedRecords() {
+  function getAllSavedRecords(regionFilter = 'ALL') {
     const list = Array.from(state.surveyRecords.values());
-    return list.sort((a, b) => a.stt.localeCompare(b.stt, undefined, { numeric: true }));
+    const filtered = (!regionFilter || regionFilter === 'ALL')
+      ? list
+      : list.filter(r => resolveRecordRegion(r) === regionFilter);
+    return filtered.sort((a, b) => a.stt.localeCompare(b.stt, undefined, { numeric: true }));
   }
 
-  function getAllOrderedPlotCodes() {
+  function getRecordsForExport() {
+    return getAllSavedRecords(state.exportRegionFilter || 'ALL');
+  }
+
+  function countSavedByRegion() {
+    const counts = { ALL: 0, CAN_THO: 0, DONG_THAP: 0, TRA_VINH: 0 };
+    state.surveyRecords.forEach(r => {
+      counts.ALL++;
+      const reg = resolveRecordRegion(r);
+      if (counts[reg] !== undefined) counts[reg]++;
+    });
+    return counts;
+  }
+
+  function getAllOrderedPlotCodes(regionFilter = 'ALL') {
     const codes = new Set();
-    for (let i = 1; i <= TOTAL_TARGET_PLOTS; i++) {
-      codes.add('CT' + String(i).padStart(2, '0'));
-    }
-    state.masterPlots.forEach((_, stt) => codes.add(stt));
-    state.surveyRecords.forEach(rec => codes.add(rec.stt));
+    const targetRegions = (!regionFilter || regionFilter === 'ALL')
+      ? REGION_ORDER
+      : (REGION_CONFIGS[regionFilter] ? [regionFilter] : REGION_ORDER);
+
+    targetRegions.forEach(reg => {
+      const prefix = getRegionMeta(reg).shortCode;
+      for (let i = 1; i <= REGION_TARGET_PLOTS; i++) {
+        codes.add(prefix + String(i).padStart(2, '0'));
+      }
+    });
+
+    state.masterPlots.forEach((m, stt) => {
+      if (!regionFilter || regionFilter === 'ALL' || resolveRecordRegion(m) === regionFilter) {
+        codes.add(stt);
+      }
+    });
+    state.surveyRecords.forEach(rec => {
+      if (!regionFilter || regionFilter === 'ALL' || resolveRecordRegion(rec) === regionFilter) {
+        codes.add(rec.stt);
+      }
+    });
     return Array.from(codes).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   }
 
@@ -344,6 +585,7 @@
     const stt = normalizeStt(document.getElementById('sttInput').value);
     const savedRec = getRecord(stt);
     const nextStt = getNextSttCode(stt);
+    const regionMeta = getRegionMeta(state.currentRegion);
 
     document.querySelectorAll('.lbl-current-stt').forEach(el => {
       el.textContent = stt;
@@ -352,7 +594,7 @@
     if (nextLbl) nextLbl.textContent = nextStt;
 
     const headerPointBox = document.getElementById('headerCurrentPointBox');
-    if (headerPointBox) headerPointBox.textContent = `Điểm đang mở: ${stt}`;
+    if (headerPointBox) headerPointBox.textContent = `${regionMeta.khuVuc} • ${stt}`;
 
     const headerBadge = document.getElementById('headerPointStatusBadge');
     const formPill = document.getElementById('formPointStatusPill');
@@ -678,24 +920,124 @@
     }
   }
 
-  function updateHeaderAndProgressUI() {
-    document.getElementById('surveyorInput').value = state.surveyorName;
-    const sCode = getSurveyorCode(state.surveyorName);
-    document.getElementById('surveyorCodeBadge').textContent = sCode;
+  function updateRegionStatusBanner() {
+    const banner = document.getElementById('gpsRegionStatusBar');
+    if (!banner) return;
+    const activeMeta = getRegionMeta(state.currentRegion);
+    const curX = parseFloat(document.getElementById('coordXInput')?.value);
+    const curY = parseFloat(document.getElementById('coordYInput')?.value);
+    const gpsDet = !isNaN(curX) && !isNaN(curY)
+      ? detectRegionByCoords(curX, curY)
+      : state.lastGpsRegion;
 
-    const savedRecords = getAllSavedRecords();
-    const doneCount = savedRecords.length;
-    const pct = Math.min(100, Math.round((doneCount / TOTAL_TARGET_PLOTS) * 100));
+    let detHtml = `<span style="color:#94a3b8;">Chưa có GPS để đối chiếu ranh giới</span>`;
+    let switchBtnHtml = '';
+
+    if (gpsDet) {
+      if (gpsDet.maNhom === activeMeta.maNhom) {
+        detHtml = `<span style="color:#4ade80;">🟢 Tọa độ khớp trong ranh giới ${gpsDet.khuVuc} (cũ)</span>`;
+      } else {
+        const targetNext = getFirstUnsavedSttForRegion(gpsDet.maNhom);
+        detHtml = `<span style="color:#fbbf24;">🧭 GPS thuộc <strong>${gpsDet.khuVuc} (${gpsDet.shortCode})</strong>, khác vùng đang chọn (${activeMeta.shortCode})</span>`;
+        switchBtnHtml = `<button type="button" id="btnQuickSwitchDetectedRegion" class="btn btn-yellow btn-sm" style="padding:3px 9px;font-size:0.74rem;">Đổi sang ${gpsDet.khuVuc} (${targetNext})</button>`;
+      }
+    } else if (!isNaN(curX) && !isNaN(curY)) {
+      detHtml = `<span style="color:#cbd5e1;">⚪ Ngoài 3 tỉnh cũ (giữ theo vùng bạn chọn tay: ${activeMeta.shortCode})</span>`;
+    }
+
+    banner.innerHTML = `
+      <div>
+        <span>📌 Vùng chọn: <strong style="color:#facc15;">${activeMeta.khuVuc}</strong> (<code>${activeMeta.maNhom}</code>)</span>
+        <span style="margin:0 6px;opacity:0.4;">|</span>
+        ${detHtml}
+      </div>
+      ${switchBtnHtml}
+    `;
+
+    const quickBtn = document.getElementById('btnQuickSwitchDetectedRegion');
+    if (quickBtn && gpsDet) {
+      quickBtn.addEventListener('click', () => {
+        switchRegion(gpsDet.maNhom, { manual: true, keepCurrentCoords: true });
+      });
+    }
+  }
+
+  function switchRegion(regionCode, options = {}) {
+    if (!REGION_CONFIGS[regionCode]) return;
+    const prevRegion = state.currentRegion;
+    state.currentRegion = regionCode;
+    if (options.manual) state.regionManuallyPinned = true;
+    localStorage.setItem('ksl_lastRegion', regionCode);
+
+    const curX = document.getElementById('coordXInput')?.value;
+    const curY = document.getElementById('coordYInput')?.value;
+    const nextCode = getFirstUnsavedSttForRegion(regionCode);
+
+    updateHeaderAndProgressUI();
+
+    if (options.targetStt) {
+      selectPlotIntoForm(options.targetStt, { panMap: options.panMap !== false });
+    } else if (prevRegion !== regionCode || !detectRegionFromStt(state.currentPlotStt)) {
+      selectPlotIntoForm(nextCode, { panMap: options.panMap !== false });
+      if (options.keepCurrentCoords && curX && curY) {
+        const numX = parseFloat(curX);
+        const numY = parseFloat(curY);
+        if (!isNaN(numX) && !isNaN(numY)) {
+          setFormCoordinates(numX, numY, false);
+        }
+      }
+    } else {
+      updateRegionStatusBanner();
+      reStampExistingPhotos();
+    }
+
+    const meta = getRegionMeta(regionCode);
+    if (options.manual && !options.silentToast) {
+      showToast(`🗺️ Đã chuyển sang vùng ${meta.khuVuc} (${meta.maNhom}) • Mã điểm ${document.getElementById('sttInput').value}`);
+    }
+  }
+
+  function updateHeaderAndProgressUI() {
+    updateSurveyorHeaderUI();
+
+    const regCounts = countSavedByRegion();
+    const activeMeta = getRegionMeta(state.currentRegion);
+    const activeCount = regCounts[state.currentRegion] || 0;
+    const pct = Math.min(100, Math.round((regCounts.ALL / TOTAL_TARGET_PLOTS) * 100));
 
     document.getElementById('progressText').textContent =
-      `Tiến độ Đợt 1: Đã lưu ${doneCount} / ${TOTAL_TARGET_PLOTS} điểm vào máy`;
+      `${activeMeta.khuVuc}: ${activeCount}/${REGION_TARGET_PLOTS} • Tổng 3 vùng: ${regCounts.ALL}/${TOTAL_TARGET_PLOTS} điểm`;
     document.getElementById('progressBarFill').style.width = `${pct}%`;
 
-    const navSaved = document.getElementById('navBadgeSavedCount');
-    if (navSaved) navSaved.textContent = String(doneCount);
-    const listDone = document.getElementById('listDoneCount');
-    if (listDone) listDone.textContent = String(doneCount);
+    REGION_ORDER.forEach(reg => {
+      const cntEl = document.getElementById(`regCount_${reg}`);
+      if (cntEl) cntEl.textContent = `${regCounts[reg] || 0}/${REGION_TARGET_PLOTS}`;
+      const btnEl = document.querySelector(`#regionSelectorGrid [data-region="${reg}"]`);
+      if (btnEl) btnEl.classList.toggle('active', reg === state.currentRegion);
+    });
 
+    const navSaved = document.getElementById('navBadgeSavedCount');
+    if (navSaved) navSaved.textContent = String(regCounts.ALL);
+    const listDone = document.getElementById('listDoneCount');
+    if (listDone) listDone.textContent = String(regCounts.ALL);
+
+    document.querySelectorAll('#listRegionFilterChips [data-list-region]').forEach(btn => {
+      const rKey = btn.getAttribute('data-list-region');
+      const m = REGION_CONFIGS[rKey];
+      const lbl = rKey === 'ALL' ? `🌐 Tất cả 3 vùng (${regCounts.ALL})` : `${m.khuVuc} (${regCounts[rKey] || 0})`;
+      btn.textContent = lbl;
+      btn.classList.toggle('selected', rKey === state.listRegionFilter);
+    });
+
+    document.querySelectorAll('#exportRegionFilterChips [data-export-region]').forEach(btn => {
+      const rKey = btn.getAttribute('data-export-region');
+      const m = REGION_CONFIGS[rKey];
+      const lbl = rKey === 'ALL' ? `🌐 Tất cả điểm hiện có (${regCounts.ALL})` : `Riêng ${m.khuVuc} (${regCounts[rKey] || 0})`;
+      btn.textContent = lbl;
+      btn.classList.toggle('selected', rKey === state.exportRegionFilter);
+    });
+
+    updateRegionStatusBanner();
     populatePlotQuickSelect();
     renderPlotListTab();
     updateExportPreviewUI();
@@ -704,7 +1046,16 @@
 
   function populatePlotQuickSelect() {
     const sel = document.getElementById('plotSelectQuick');
-    const allCodes = getAllOrderedPlotCodes();
+    const lbl = document.getElementById('plotSelectQuickLabel');
+    const hint = document.getElementById('sttPrefixHint');
+    const meta = getRegionMeta(state.currentRegion);
+    if (lbl) lbl.textContent = `Chọn nhanh điểm ${meta.khuVuc} (${meta.shortCode}01–${meta.shortCode}${REGION_TARGET_PLOTS})`;
+    if (hint) hint.textContent = `Nhập mã ${meta.shortCode}01..${meta.shortCode}${REGION_TARGET_PLOTS} hoặc bấm "Qua điểm mới"`;
+
+    const allCodes = getAllOrderedPlotCodes(state.currentRegion);
+    if (state.currentPlotStt && !allCodes.includes(state.currentPlotStt)) {
+      allCodes.unshift(state.currentPlotStt);
+    }
     sel.innerHTML = '';
 
     allCodes.forEach(stt => {
@@ -802,7 +1153,26 @@
   }
 
   function selectPlotIntoForm(sttRaw, options = {}) {
-    const stt = normalizeStt(sttRaw);
+    const inferredRegion = detectRegionFromStt(sttRaw);
+    const stt = normalizeStt(sttRaw, inferredRegion || state.currentRegion);
+    const existingRec = getRecord(stt);
+    const master = state.masterPlots.get(stt);
+    const targetRegion = (existingRec && REGION_CONFIGS[existingRec.maNhom])
+      ? existingRec.maNhom
+      : (master && REGION_CONFIGS[master.maNhom])
+        ? master.maNhom
+        : (inferredRegion || state.currentRegion);
+
+    if (targetRegion && targetRegion !== state.currentRegion) {
+      state.currentRegion = targetRegion;
+      localStorage.setItem('ksl_lastRegion', targetRegion);
+      REGION_ORDER.forEach(reg => {
+        const btnEl = document.querySelector(`#regionSelectorGrid [data-region="${reg}"]`);
+        if (btnEl) btnEl.classList.toggle('active', reg === state.currentRegion);
+      });
+      populatePlotQuickSelect();
+    }
+
     state.currentPlotStt = stt;
     state.isCurrentFormDirty = false;
     state.photoStampGeneration = (state.photoStampGeneration || 0) + 1;
@@ -817,9 +1187,6 @@
     document.getElementById('sttInput').value = stt;
     const quickSel = document.getElementById('plotSelectQuick');
     if (quickSel) quickSel.value = stt;
-
-    const existingRec = getRecord(stt);
-    const master = state.masterPlots.get(stt);
 
     const xInput = document.getElementById('coordXInput');
     const yInput = document.getElementById('coordYInput');
@@ -905,6 +1272,7 @@
     updateDASAndStageHints();
     updatePhotoCardsUI();
     updateCurrentPointSaveStatusUI();
+    updateRegionStatusBanner();
     syncMapsToCurrentPlot(options.panMap !== false);
   }
 
@@ -976,14 +1344,44 @@
     return { hybridGroup, osmStreet };
   }
 
+  function renderRegionBoundaries() {
+    if (!state.miniBoundariesLayer || !state.fullBoundariesLayer) return;
+    state.miniBoundariesLayer.clearLayers();
+    state.fullBoundariesLayer.clearLayers();
+
+    const toggleBtn = document.getElementById('btnToggleBoundaries');
+    if (toggleBtn) {
+      toggleBtn.textContent = state.showBoundaries ? '🗺️ Ranh giới: BẬT' : '🗺️ Ranh giới: TẮT';
+    }
+    if (!state.showBoundaries || !window.DBSCL_REGION_BOUNDS) return;
+
+    REGION_ORDER.forEach(maNhom => {
+      const entry = window.DBSCL_REGION_BOUNDS[maNhom];
+      if (!entry || !Array.isArray(entry.polygons)) return;
+      const latLngRings = entry.polygons.map(ring => ring.map(([lon, lat]) => [lat, lon]));
+      const styleOpts = {
+        color: entry.color || '#38bdf8',
+        weight: 2,
+        dashArray: '6 4',
+        opacity: 0.85,
+        fillColor: entry.color || '#38bdf8',
+        fillOpacity: 0.05,
+        interactive: false
+      };
+      L.polygon(latLngRings, styleOpts).addTo(state.miniBoundariesLayer);
+      L.polygon(latLngRings, styleOpts).bindTooltip(`${entry.khuVuc} (${entry.shortCode})`).addTo(state.fullBoundariesLayer);
+    });
+  }
+
   function initMaps() {
-    const defaultLat = 10.450000;
-    const defaultLon = 105.650000;
+    const center = getRegionMeta(state.currentRegion).center || [10.3000, 105.7500];
+    const defaultLat = center[0];
+    const defaultLon = center[1];
 
     const layers1 = createSatelliteLayers();
     state.miniMap = L.map('miniMap', {
       center: [defaultLat, defaultLon],
-      zoom: 15,
+      zoom: 12,
       layers: [layers1.hybridGroup],
       zoomControl: true
     });
@@ -993,6 +1391,7 @@
       { position: 'topright' }
     ).addTo(state.miniMap);
 
+    state.miniBoundariesLayer = L.layerGroup().addTo(state.miniMap);
     state.miniMarkersLayer = L.layerGroup().addTo(state.miniMap);
     state.miniMap.on('click', (e) => {
       if (state.isCoordLocked) {
@@ -1004,8 +1403,8 @@
 
     const layers2 = createSatelliteLayers();
     state.fullMap = L.map('fullMap', {
-      center: [defaultLat, defaultLon],
-      zoom: 12,
+      center: [10.1800, 105.9000],
+      zoom: 9,
       layers: [layers2.hybridGroup],
       zoomControl: true
     });
@@ -1015,6 +1414,7 @@
       { position: 'topright' }
     ).addTo(state.fullMap);
 
+    state.fullBoundariesLayer = L.layerGroup().addTo(state.fullMap);
     state.fullMarkersLayer = L.layerGroup().addTo(state.fullMap);
     state.fullMap.on('click', (e) => {
       if (state.isCoordLocked) {
@@ -1024,6 +1424,7 @@
       setFormCoordinates(e.latlng.lng, e.latlng.lat, true);
     });
 
+    renderRegionBoundaries();
     refreshMapMarkers();
   }
 
@@ -1036,6 +1437,7 @@
       markFormDirty();
       showToast(`📍 Đã đặt tọa độ điểm ${state.currentPlotStt}: X=${xStr}, Y=${yStr}`);
     }
+    updateRegionStatusBanner();
     reStampExistingPhotos();
     refreshMapMarkers();
   }
@@ -1045,10 +1447,11 @@
     state.miniMarkersLayer.clearLayers();
     state.fullMarkersLayer.clearLayers();
 
-    const allCodes = getAllOrderedPlotCodes();
+    const allCodes = getAllOrderedPlotCodes('ALL');
     const curX = parseFloat(document.getElementById('coordXInput').value);
     const curY = parseFloat(document.getElementById('coordYInput').value);
 
+    const regCounts = { CAN_THO: 0, DONG_THAP: 0, TRA_VINH: 0 };
     let countDone = 0;
 
     allCodes.forEach(stt => {
@@ -1060,33 +1463,42 @@
       const lat = isSelected && !isNaN(curY) ? curY : (rec ? parseFloat(rec.y) : (master ? parseFloat(master.y) : NaN));
       if (isNaN(lon) || isNaN(lat)) return;
 
-      if (rec) countDone++;
+      const regCode = rec
+        ? resolveRecordRegion(rec)
+        : (master ? resolveRecordRegion(master) : (detectRegionFromStt(stt) || state.currentRegion));
+      const regMeta = getRegionMeta(regCode);
 
-      const shortNum = stt.replace(/^CT/, '');
+      if (rec) {
+        countDone++;
+        if (regCounts[regCode] !== undefined) regCounts[regCode]++;
+      }
+
       const pinClass = isSelected
         ? 'plot-pin plot-pin-selected'
         : rec
           ? 'plot-pin plot-pin-done'
           : 'plot-pin plot-pin-todo';
-      const pinLabel = rec ? `${shortNum}✓` : shortNum;
+      const pinLabel = rec ? `${stt}✓` : stt;
+      const borderCol = isSelected ? '#facc15' : regMeta.color;
 
       const icon = L.divIcon({
         className: '',
-        html: `<div class="${pinClass}" style="width:36px;height:36px;">${pinLabel}</div>`,
-        iconSize: [36, 36],
-        iconAnchor: [18, 18],
-        popupAnchor: [0, -16]
+        html: `<div class="${pinClass}" style="min-width:42px;height:30px;border-color:${borderCol};">${pinLabel}</div>`,
+        iconSize: [42, 30],
+        iconAnchor: [21, 15],
+        popupAnchor: [0, -14]
       });
 
       const popupHTML = `
-        <div style="min-width:210px;color:#0f172a;font-family:sans-serif;">
-          <div style="font-weight:900;font-size:1rem;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;">
-            <span>🌾 Điểm ${stt}</span>
+        <div style="min-width:220px;color:#0f172a;font-family:sans-serif;">
+          <div style="font-weight:900;font-size:1rem;margin-bottom:4px;display:flex;justify-content:space-between;align-items:center;gap:6px;">
+            <span>🌾 ${stt} <small style="font-size:0.74rem;color:${regMeta.color};">(${regMeta.khuVuc})</small></span>
             <span style="padding:2px 7px;border-radius:99px;font-size:0.74rem;color:#fff;background:${rec ? '#15803d' : '#ea580c'};">
               ${rec ? 'Đã lưu ✓' : 'Chưa lưu'}
             </span>
           </div>
           <div style="font-size:0.8rem;line-height:1.4;margin-bottom:8px;">
+            <div><strong>Nhóm/Vùng:</strong> ${regMeta.khuVuc} (<code>${regMeta.maNhom}</code>)</div>
             <div><strong>X (Lon):</strong> ${lon.toFixed(6)} | <strong>Y (Lat):</strong> ${lat.toFixed(6)}</div>
             ${rec ? `<div><strong>Ghi chú:</strong> ${rec.note || ''}</div>` : ''}
             ${rec ? `<div><strong>Ngày giờ:</strong> ${rec.surveyDateTime || ''}</div>` : ''}
@@ -1121,6 +1533,14 @@
 
     const doneEl = document.getElementById('mapCountDone');
     if (doneEl) doneEl.textContent = String(countDone);
+
+    const mapRegEl = document.getElementById('mapRegionCounts');
+    if (mapRegEl) {
+      mapRegEl.innerHTML = REGION_ORDER.map(r => {
+        const m = REGION_CONFIGS[r];
+        return `<span class="region-badge region-badge-${r}">${m.shortCode}: ${regCounts[r]}/50</span>`;
+      }).join('');
+    }
   }
 
   window.__kslStartPlot = function (stt) {
@@ -1138,6 +1558,9 @@
     if (!isNaN(x) && !isNaN(y)) {
       if (state.miniMap) state.miniMap.setView([y, x], Math.max(state.miniMap.getZoom(), 17));
       if (state.fullMap) state.fullMap.panTo([y, x]);
+    } else if (state.miniMap) {
+      const center = getRegionMeta(state.currentRegion).center;
+      if (center) state.miniMap.setView(center, 11);
     }
   }
 
@@ -1196,8 +1619,31 @@
         }
 
         if (setIntoForm) {
-          setFormCoordinates(lon, lat, true);
+          const detected = detectRegionByCoords(lon, lat);
+          state.lastGpsRegion = detected;
+          const hasAnyPhoto = !!(state.currentPhotos.TongQuan || state.currentPhotos.Can1 || state.currentPhotos.Can2);
+          const canAutoSwitch = !state.regionManuallyPinned &&
+            !state.isCurrentFormDirty &&
+            !hasAnyPhoto &&
+            !getRecord(state.currentPlotStt) &&
+            detected &&
+            detected.maNhom !== state.currentRegion;
+
+          if (canAutoSwitch) {
+            state.currentRegion = detected.maNhom;
+            localStorage.setItem('ksl_lastRegion', detected.maNhom);
+            const autoStt = getFirstUnsavedSttForRegion(detected.maNhom);
+            selectPlotIntoForm(autoStt, { panMap: false });
+            setFormCoordinates(lon, lat, false);
+            updateHeaderAndProgressUI();
+            showToast(`📍 GPS xác định ở ${detected.khuVuc} → Tự động chọn mã ${autoStt} (${detected.maNhom})!`);
+          } else {
+            setFormCoordinates(lon, lat, true);
+          }
           if (state.miniMap) state.miniMap.setView([lat, lon], 18);
+        } else {
+          state.lastGpsRegion = detectRegionByCoords(lon, lat);
+          updateRegionStatusBanner();
         }
       },
       (err) => {
@@ -1259,6 +1705,7 @@
 
         const stt = normalizeStt(document.getElementById('sttInput').value);
         const typeLabel = PHOTO_TYPES[typeKey].label;
+        const regMeta = getRegionMeta(detectRegionFromStt(stt) || state.currentRegion);
         const sName = (state.surveyorName || 'Chưa nhập').trim();
         const xVal = (document.getElementById('coordXInput').value || 'Chưa có').trim();
         const yVal = (document.getElementById('coordYInput').value || 'Chưa có').trim();
@@ -1272,7 +1719,7 @@
         const scale = Math.max(0.75, w / 1000);
         const pad = Math.round(16 * scale);
 
-        const topText = `ĐỢT 1 • ${stt} • ${typeLabel}`;
+        const topText = `ĐỢT 1 • ${regMeta.khuVucUpper} • ${stt} • ${typeLabel}`;
         ctx.font = `900 ${Math.round(28 * scale)}px sans-serif`;
         const topMetrics = ctx.measureText(topText);
         const badgeW = topMetrics.width + pad * 2;
@@ -1461,21 +1908,25 @@
 
   // --- SAVE RECORD TO LOCAL INDEXEDDB ---
   async function handleSaveSurveyRecord(options = {}) {
-    const sName = document.getElementById('surveyorInput').value.trim();
+    const inputName = (document.getElementById('surveyorInput')?.value || '').trim();
+    const sName = inputName || (state.surveyorName || '').trim();
     if (!sName) {
       showModal({
         title: '⚠️ Chưa nhập Tên người khảo sát',
-        html: '<p>Vui lòng nhập <strong>Tên người khảo sát</strong> ở thanh đầu trang trước khi lưu điểm!</p>',
+        html: '<p>Vui lòng nhập <strong>Tên người khảo sát</strong> cho ngày hôm nay trước khi lưu điểm (chỉ hỏi 1 lần cho cả ngày)!</p>',
         buttons: [{
           label: 'Nhập ngay',
           className: 'btn btn-yellow btn-sm',
-          onClick: () => document.getElementById('surveyorInput').focus()
+          onClick: () => {
+            state.isEditingSurveyor = true;
+            updateSurveyorHeaderUI();
+            document.getElementById('surveyorInput').focus();
+          }
         }]
       });
       return null;
     }
-    state.surveyorName = sName;
-    localStorage.setItem('ksl_surveyorName', sName);
+    confirmSurveyorForToday(sName);
 
     const stt = normalizeStt(document.getElementById('sttInput').value);
     state.currentPlotStt = stt;
@@ -1514,10 +1965,17 @@
     updateCombinedNotePreview();
     const finalNote = document.getElementById('finalNotePreview').value.trim();
 
+    const activeRegionMeta = getRegionMeta(state.currentRegion);
+    const gpsDet = detectRegionByCoords(xVal, yVal);
+    const maNhomGps = gpsDet ? gpsDet.maNhom : 'OUTSIDE';
+
     const nowIso = new Date().toISOString();
     const record = {
       id: `R1_${stt}`,
       round: CURRENT_ROUND,
+      maNhom: activeRegionMeta.maNhom,
+      khuVuc: activeRegionMeta.khuVuc,
+      maNhomGps,
       surveyorName: sName,
       surveyorCode: getSurveyorCode(sName),
       stt,
@@ -1557,6 +2015,8 @@
     const updatedMaster = {
       ...(state.masterPlots.get(stt) || {}),
       stt,
+      maNhom: activeRegionMeta.maNhom,
+      khuVuc: activeRegionMeta.khuVuc,
       x: Number(xVal),
       y: Number(yVal),
       sowingDate,
@@ -1574,7 +2034,7 @@
     const savedTimeStr = formatShortTime(nowIso);
     const lastBadge = document.getElementById('lastSavedTimeBadge');
     if (lastBadge) {
-      lastBadge.textContent = `Vừa lưu: ${stt} lúc ${savedTimeStr}`;
+      lastBadge.textContent = `Vừa lưu: ${stt} (${activeRegionMeta.shortCode}) lúc ${savedTimeStr}`;
     }
 
     updateHeaderAndProgressUI();
@@ -1586,9 +2046,10 @@
 
     if (!options.silentPopup) {
       showModal({
-        title: `✅ ĐÃ LƯU THÀNH CÔNG ĐIỂM ${stt} VÀO MÁY!`,
+        title: `✅ ĐÃ LƯU ĐIỂM ${stt} (${activeRegionMeta.khuVuc.toUpperCase()})!`,
         html: `
           <div style="background:rgba(34,197,94,0.15);border:1.5px solid #4ade80;border-radius:10px;padding:12px;margin-bottom:12px;line-height:1.55;">
+            <div>🗺️ <strong>Khu vực / Mã nhóm:</strong> <span class="region-badge region-badge-${record.maNhom}">${record.khuVuc} • ${record.maNhom}</span></div>
             <div>📍 <strong>Mã điểm ruộng:</strong> <span style="color:#facc15;font-weight:900;">${stt}</span> (Lưu lúc ${savedTimeStr})</div>
             <div>🛰️ <strong>Tọa độ đã chốt:</strong> X = <code>${record.x}</code>, Y = <code>${record.y}</code></div>
             <div>🌾 <strong>Giai đoạn lúa:</strong> Mã ${record.growthStage} (${stObj ? stObj.vi : ''}) • <em>${record.stageNote}</em></div>
@@ -1764,9 +2225,9 @@
   }
 
   async function pushPackageDirectlyToGoogleDrive() {
-    const records = getAllSavedRecords();
+    const records = getRecordsForExport();
     if (records.length === 0) {
-      showToast('Chưa có điểm khảo sát nào được lưu! Hãy lưu ít nhất 1 điểm ở Tab 1.', 'warn');
+      showToast('Chưa có điểm khảo sát nào khớp bộ lọc đang chọn!', 'warn');
       return;
     }
     if (state.isUploading) return;
@@ -1818,7 +2279,15 @@
       const xlsxBase64 = await blobToBase64(xlsxBlob);
       const res = await postPayloadToAppsScript(
         targetGasUrl,
-        { zipName, zipBase64, xlsxName, xlsxBase64, surveyor: state.surveyorName, totalPlots: records.length },
+        {
+          zipName,
+          zipBase64,
+          xlsxName,
+          xlsxBase64,
+          surveyor: state.surveyorName,
+          totalPlots: records.length,
+          exportScope: state.exportRegionFilter || 'ALL'
+        },
         (upPct) => {
           const mapped = 45 + Math.round(upPct * 0.5);
           renderProgressStepUI(`☁️ ĐANG NỘP DỮ LIỆU (${Math.round(upPct)}%)...`, mapped, steps);
@@ -1989,9 +2458,9 @@
   }
 
   async function exportAllAfterTripWithProgress(shareMode = 'download_for_drive') {
-    const records = getAllSavedRecords();
+    const records = getRecordsForExport();
     if (records.length === 0) {
-      showToast('Chưa có điểm khảo sát nào được lưu! Hãy lưu ít nhất 1 điểm ở Tab 1.', 'warn');
+      showToast('Chưa có điểm khảo sát nào khớp bộ lọc đang chọn!', 'warn');
       return;
     }
     if (state.isUploading) return;
@@ -2079,7 +2548,8 @@
 
     const searchQ = (document.getElementById('searchPlotInput').value || '').trim().toLowerCase();
     const statusFilter = document.getElementById('filterStatusSelect').value || 'done';
-    const allCodes = getAllOrderedPlotCodes();
+    const regionFilter = state.listRegionFilter || 'ALL';
+    const allCodes = getAllOrderedPlotCodes(regionFilter);
 
     const htmlList = [];
     allCodes.forEach(stt => {
@@ -2088,7 +2558,13 @@
       if (statusFilter === 'done' && !rec) return;
       if (statusFilter === 'todo' && rec) return;
 
-      const textBlob = `${stt} ${rec ? (rec.note || '') + ' ' + (rec.x || '') : ''} ${master ? (master.variety || '') + ' ' + (master.xa || '') : ''}`.toLowerCase();
+      const regCode = rec
+        ? resolveRecordRegion(rec)
+        : (master ? resolveRecordRegion(master) : (detectRegionFromStt(stt) || 'CAN_THO'));
+      const regMeta = getRegionMeta(regCode);
+      if (regionFilter !== 'ALL' && regCode !== regionFilter) return;
+
+      const textBlob = `${stt} ${regMeta.khuVuc} ${regMeta.maNhom} ${rec ? (rec.note || '') + ' ' + (rec.x || '') : ''} ${master ? (master.variety || '') + ' ' + (master.xa || '') : ''}`.toLowerCase();
       if (searchQ && !textBlob.includes(searchQ)) return;
 
       const xDisp = rec ? rec.x : (master && master.x ? Number(master.x).toFixed(6) : '—');
@@ -2116,6 +2592,7 @@
           <div class="plot-item-top">
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <span class="plot-stt-badge">${stt}</span>
+              <span class="region-badge region-badge-${regCode}">${regMeta.khuVuc}</span>
               ${statusBadgeHTML}
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;">
@@ -2144,12 +2621,13 @@
     if (htmlList.length > 0) {
       container.innerHTML = htmlList.join('');
     } else if (statusFilter === 'done') {
+      const activeMeta = getRegionMeta(state.currentRegion);
       container.innerHTML = `
         <div style="text-align:center;padding:24px;color:var(--text-secondary);">
           <div style="font-size:1.8rem;margin-bottom:6px;">📍</div>
-          <div style="font-weight:800;margin-bottom:8px;">Chưa có điểm khảo sát nào được lưu trong máy.</div>
+          <div style="font-weight:800;margin-bottom:8px;">Chưa có điểm khảo sát nào khớp bộ lọc.</div>
           <button type="button" class="btn btn-yellow btn-sm" onclick="document.querySelector('[data-tab=tab-survey]').click()">
-            👉 Quay lại Tab 1 để Định vị GPS &amp; Lưu điểm CT01
+            👉 Quay lại Tab 1 để Định vị GPS &amp; Lưu điểm ${activeMeta.shortCode}01
           </button>
         </div>
       `;
@@ -2191,18 +2669,23 @@
 
   // --- EXPORT / IMPORT MASTER PLOTS ---
   function exportMasterRegistryJSON() {
-    const saved = getAllSavedRecords();
-    const list = saved.map(r => ({
-      stt: r.stt,
-      x: Number(r.x),
-      y: Number(r.y),
-      sowingDate: r.sowingDate,
-      variety: r.variety,
-      method: r.method,
-      baseNote: r.note
-    }));
+    const saved = getAllSavedRecords('ALL');
+    const list = saved.map(r => {
+      const maNhom = resolveRecordRegion(r);
+      return {
+        stt: r.stt,
+        maNhom,
+        khuVuc: getRegionMeta(maNhom).khuVuc,
+        x: Number(r.x),
+        y: Number(r.y),
+        sowingDate: r.sowingDate,
+        variety: r.variety,
+        method: r.method,
+        baseNote: r.note
+      };
+    });
     const payload = {
-      version: '3.2',
+      version: '4.0-3vung',
       exportedAt: formatNowDateTime(),
       exportedBy: state.surveyorName,
       totalPlots: list.length,
@@ -2230,6 +2713,7 @@
             const coords = (f.geometry && f.geometry.coordinates) || [105.741, 10.546];
             return {
               stt: normalizeStt(p.stt || p['STT (GPS)'] || `CT${idx + 1}`),
+              maNhom: p.maNhom || p.MaNhom || null,
               x: Number(coords[0]),
               y: Number(coords[1]),
               sowingDate: p.sowingDate || p['Ngày sạ/cấy'] || '',
@@ -2254,6 +2738,7 @@
           const parts = noteRaw.split('-').map(s => s.trim());
           return {
             stt,
+            maNhom: r['MaNhom'] || r['maNhom'] || null,
             x,
             y,
             sowingDate: String(r['Ngày sạ/cấy sowing/transplanting date (if any) dd/mm/yy'] || r['sowingDate'] || ''),
@@ -2270,8 +2755,12 @@
       }
 
       for (const p of importedPlots) {
+        const normStt = normalizeStt(p.stt);
+        const regCode = resolveRecordRegion({ stt: normStt, maNhom: p.maNhom, x: p.x, y: p.y });
         const cleanPlot = {
-          stt: normalizeStt(p.stt),
+          stt: normStt,
+          maNhom: regCode,
+          khuVuc: getRegionMeta(regCode).khuVuc,
           x: Number(parseFloat(p.x).toFixed(6)),
           y: Number(parseFloat(p.y).toFixed(6)),
           sowingDate: p.sowingDate || '',
@@ -2295,14 +2784,28 @@
   async function loadPresetDataset(presetKey) {
     if (!window.DBSCL_PRESETS || !window.DBSCL_PRESETS[presetKey]) return;
     const list = window.DBSCL_PRESETS[presetKey];
+    const presetRegionMap = {
+      demo_5_ct: 'CAN_THO',
+      can_tho_50: 'CAN_THO',
+      dong_thap_50: 'DONG_THAP',
+      tra_vinh_50: 'TRA_VINH'
+    };
+    const presetRegion = presetRegionMap[presetKey] || 'CAN_THO';
 
     for (const p of list) {
-      await dbPut('master_plots', p);
-      state.masterPlots.set(p.stt, p);
+      const regCode = resolveRecordRegion({ ...p, maNhom: p.maNhom || presetRegion });
+      const regMeta = getRegionMeta(regCode);
+      const cleanMaster = { ...p, maNhom: regCode, khuVuc: regMeta.khuVuc };
+      await dbPut('master_plots', cleanMaster);
+      state.masterPlots.set(p.stt, cleanMaster);
       if (presetKey === 'demo_5_ct') {
+        const gpsDet = detectRegionByCoords(p.x, p.y);
         const rec = {
           id: `R1_${p.stt}`,
           round: 1,
+          maNhom: regCode,
+          khuVuc: regMeta.khuVuc,
+          maNhomGps: gpsDet ? gpsDet.maNhom : 'OUTSIDE',
           surveyorName: state.surveyorName || 'Nguyễn Văn Minh',
           surveyorCode: getSurveyorCode(state.surveyorName || 'Nguyễn Văn Minh'),
           stt: p.stt,
@@ -2329,10 +2832,13 @@
       }
     }
 
+    state.currentRegion = presetRegion;
+    state.regionManuallyPinned = true;
+    localStorage.setItem('ksl_lastRegion', presetRegion);
     updateHeaderAndProgressUI();
     selectPlotIntoForm(list[0].stt, { panMap: true });
     fitAllSavedPlotsOnMap();
-    showToast(`✅ Đã nạp dữ liệu mẫu (${list.length} điểm)!`);
+    showToast(`✅ Đã nạp dữ liệu mẫu ${getRegionMeta(presetRegion).khuVuc} (${list.length} điểm)!`);
   }
 
   // --- EXPORT EXCEL, CSV, GEOJSON, KML & ZALO ZIP PACKAGE ---
@@ -2344,9 +2850,15 @@
       const stageNoteVal = r.stageNote || (stCode === 0 ? 'Chưa sạ - Đang làm đất' : stCode === 13 ? 'Đã thu hoạch - Còn gốc rạ' : 'Đang có lúa');
       const sowSourceVal = r.sowingSource || (r.sowingDate ? 'Ước lượng' : 'Chưa sạ / Chưa rõ');
       const sowDisplay = r.sowingDate ? `${r.sowingDate} (${sowSourceVal})` : sowSourceVal;
+      const maNhom = resolveRecordRegion(r);
+      const khuVuc = r.khuVuc || getRegionMeta(maNhom).khuVuc;
+      const gpsDet = r.maNhomGps || (detectRegionByCoords(r.x, r.y)?.maNhom || 'OUTSIDE');
 
       return {
         'STT (GPS)': r.stt,
+        'MaNhom': maNhom,
+        'KhuVuc': khuVuc,
+        'MaNhom_GPS': gpsDet,
         'X': Number(r.x),
         'Y': Number(r.y),
         'Ngày và giờ khảo sát (dd/mm/yy hh:mm)': r.surveyDateTime,
@@ -2376,7 +2888,7 @@
     const wsSurvey = XLSX.utils.json_to_sheet(
       surveyRows.length > 0
         ? surveyRows
-        : [{ 'STT (GPS)': 'Chưa có bản ghi', 'X': '', 'Y': '' }]
+        : [{ 'STT (GPS)': 'Chưa có bản ghi', 'MaNhom': '', 'KhuVuc': '', 'X': '', 'Y': '' }]
     );
     XLSX.utils.book_append_sheet(wb, wsSurvey, 'KhaoSatLua_Dot1');
     return XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
@@ -2390,38 +2902,49 @@
   }
 
   function generateGeoJSONString(records) {
-    const features = records.map(r => ({
-      type: 'Feature',
-      geometry: {
-        type: 'Point',
-        coordinates: [parseFloat(r.x), parseFloat(r.y)]
-      },
-      properties: {
-        stt: r.stt,
-        round: 1,
-        surveyorName: r.surveyorName,
-        surveyDateTime: r.surveyDateTime,
-        growthStage: Number(r.growthStage),
-        waterRegime: r.waterRegime,
-        waterLevelAvg: r.waterLevelAvg,
-        sowingDate: r.sowingDate,
-        note: r.note,
-        photoTongQuan: r.photos && r.photos.TongQuan ? r.photos.TongQuan.fileName : '',
-        photoCan1: r.photos && r.photos.Can1 ? r.photos.Can1.fileName : '',
-        photoCan2: r.photos && r.photos.Can2 ? r.photos.Can2.fileName : ''
-      }
-    }));
+    const features = records.map(r => {
+      const maNhom = resolveRecordRegion(r);
+      const khuVuc = r.khuVuc || getRegionMeta(maNhom).khuVuc;
+      const maNhomGps = r.maNhomGps || (detectRegionByCoords(r.x, r.y)?.maNhom || 'OUTSIDE');
+      return {
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: [parseFloat(r.x), parseFloat(r.y)]
+        },
+        properties: {
+          stt: r.stt,
+          maNhom,
+          khuVuc,
+          maNhomGps,
+          round: 1,
+          surveyorName: r.surveyorName,
+          surveyDateTime: r.surveyDateTime,
+          growthStage: Number(r.growthStage),
+          waterRegime: r.waterRegime,
+          waterLevelAvg: r.waterLevelAvg,
+          sowingDate: r.sowingDate,
+          note: r.note,
+          photoTongQuan: r.photos && r.photos.TongQuan ? r.photos.TongQuan.fileName : '',
+          photoCan1: r.photos && r.photos.Can1 ? r.photos.Can1.fileName : '',
+          photoCan2: r.photos && r.photos.Can2 ? r.photos.Can2.fileName : ''
+        }
+      };
+    });
     return JSON.stringify({ type: 'FeatureCollection', features }, null, 2);
   }
 
   function generateKMLString(records) {
     const placemarks = records.map(r => {
       const stObj = RICE_STAGES.find(s => s.code === Number(r.growthStage));
+      const maNhom = resolveRecordRegion(r);
+      const khuVuc = r.khuVuc || getRegionMeta(maNhom).khuVuc;
       return `
     <Placemark>
-      <name>${r.stt}</name>
+      <name>${r.stt} (${khuVuc})</name>
       <description><![CDATA[
         <b>Mã ruộng:</b> ${r.stt}<br/>
+        <b>Khu vực / Mã nhóm:</b> ${khuVuc} (${maNhom})<br/>
         <b>Người khảo sát:</b> ${r.surveyorName}<br/>
         <b>Ngày giờ:</b> ${r.surveyDateTime}<br/>
         <b>Giai đoạn lúa:</b> Mã ${r.growthStage} (${stObj ? stObj.vi : ''})<br/>
@@ -2438,16 +2961,29 @@
     return `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
-    <name>KhaoSatLua_Dot1</name>
+    <name>KhaoSatLua_3Vung_Dot1</name>
     ${placemarks}
   </Document>
 </kml>`;
   }
 
+  function getExportRegionTag(records) {
+    if (!records || records.length === 0) {
+      return state.exportRegionFilter && REGION_CONFIGS[state.exportRegionFilter]
+        ? REGION_CONFIGS[state.exportRegionFilter].shortCode
+        : getRegionMeta(state.currentRegion).shortCode;
+    }
+    const uniqueRegs = Array.from(new Set(records.map(r => resolveRecordRegion(r))));
+    if (uniqueRegs.length === 1) return getRegionMeta(uniqueRegs[0]).shortCode;
+    if (uniqueRegs.length >= 3) return '3VUNG';
+    return uniqueRegs.map(r => getRegionMeta(r).shortCode).sort().join('-');
+  }
+
   function getBaseExportPrefix(records) {
+    const regionTag = getExportRegionTag(records);
     const sCode = getSurveyorCode(state.surveyorName);
     const ts = formatFileTimestamp();
-    return `KhaoSatLua_Dot1_${sCode}_${ts}_${records.length}diem`;
+    return `KhaoSatLua_Dot1_${regionTag}_${sCode}_${ts}_${records.length}diem`;
   }
 
   function dataUrlToUint8Array(dataUrl) {
@@ -2462,7 +2998,7 @@
   }
 
   async function buildZipPackageBlob(customRecords, onProgress) {
-    const records = customRecords || getAllSavedRecords();
+    const records = customRecords || getRecordsForExport();
     const prefix = getBaseExportPrefix(records);
     const zip = new JSZip();
 
@@ -2472,19 +3008,25 @@
     const csvStr = generateCSVWithBOM(records);
     zip.file(`${prefix}.csv`, csvStr);
 
-    const masterList = records.map(r => ({
-      stt: r.stt,
-      x: Number(r.x),
-      y: Number(r.y),
-      sowingDate: r.sowingDate,
-      variety: r.variety,
-      method: r.method,
-      baseNote: r.note
-    }));
+    const masterList = records.map(r => {
+      const maNhom = resolveRecordRegion(r);
+      return {
+        stt: r.stt,
+        maNhom,
+        khuVuc: getRegionMeta(maNhom).khuVuc,
+        x: Number(r.x),
+        y: Number(r.y),
+        sowingDate: r.sowingDate,
+        variety: r.variety,
+        method: r.method,
+        baseNote: r.note
+      };
+    });
     zip.file('DanhMuc_RuongDot1.json', JSON.stringify({
-      version: '3.2',
+      version: '4.0-3vung',
       exportedAt: formatNowDateTime(),
       exportedBy: state.surveyorName,
+      exportScope: state.exportRegionFilter || 'ALL',
       totalPlots: masterList.length,
       masterPlots: masterList
     }, null, 2));
@@ -2533,10 +3075,13 @@
   }
 
   function updateExportPreviewUI() {
-    const records = getAllSavedRecords();
+    const records = getRecordsForExport();
     const prefix = getBaseExportPrefix(records);
     let photoCount = 0;
+    const regionCounts = { CAN_THO: 0, DONG_THAP: 0, TRA_VINH: 0 };
     records.forEach(r => {
+      const reg = resolveRecordRegion(r);
+      if (regionCounts[reg] !== undefined) regionCounts[reg]++;
       if (r.photos) {
         ['TongQuan', 'Can1', 'Can2'].forEach(tk => {
           if (r.photos[tk] && r.photos[tk].stampedDataUrl) photoCount++;
@@ -2544,27 +3089,35 @@
       }
     });
 
+    const regionBreakdown = REGION_ORDER
+      .filter(r => regionCounts[r] > 0)
+      .map(r => `${REGION_CONFIGS[r].khuVuc} (${REGION_CONFIGS[r].shortCode}): ${regionCounts[r]}`)
+      .join(' • ') || 'Chưa có điểm nào';
+
     const previewEl = document.getElementById('exportPackagePreview');
     if (previewEl) {
       previewEl.innerHTML = `
         <div style="font-weight:900;color:#facc15;margin-bottom:6px;word-break:break-all;">
           📁 Tên gói nén khi xuất: ${prefix}.zip
         </div>
+        <div style="font-size:0.82rem;color:#86efac;font-weight:700;margin-bottom:6px;">
+          🗺️ Phân bổ theo vùng: ${regionBreakdown}
+        </div>
         <ul style="padding-left:18px;line-height:1.55;color:var(--text-secondary);">
-          <li>📊 <strong>${prefix}.xlsx</strong> &amp; <strong>.csv</strong> (${records.length} điểm đã lưu trong máy, chuẩn 9 cột gốc)</li>
+          <li>📊 <strong>${prefix}.xlsx</strong> &amp; <strong>.csv</strong> (${records.length} điểm, có sẵn cột <code>MaNhom</code>, <code>KhuVuc</code>, <code>MaNhom_GPS</code>)</li>
           <li>🗂️ <strong>DanhMuc_RuongDot1.json</strong> (${records.length} điểm ruộng Đợt 1)</li>
           <li>🌍 <strong>${prefix}.geojson</strong> &amp; <strong>.kml</strong> (Mở trực tiếp trên Google Earth / QGIS)</li>
-          <li>🖼️ Thư mục <strong>Anh_Co_Code/</strong> (${photoCount} ảnh JPEG đã đóng dấu mã Code)</li>
+          <li>🖼️ Thư mục <strong>Anh_Co_Code/</strong> (${photoCount} ảnh JPEG đã đóng dấu mã Vùng &amp; Code)</li>
         </ul>
       `;
     }
 
     const doneStts = records.map(r => r.stt).join(', ');
     const reportText = [
-      `🌾 [BÁO CÁO KHẢO SÁT LÚA THỰC ĐỊA - ĐỢT 1]`,
-      `👤 Người khảo sát: ${state.surveyorName} (Mã: ${getSurveyorCode(state.surveyorName)})`,
+      `🌾 [BÁO CÁO KHẢO SÁT LÚA 3 VÙNG - ĐỢT 1]`,
+      `👤 Người khảo sát: ${state.surveyorName || 'Chưa nhập'} (Mã: ${getSurveyorCode(state.surveyorName)})`,
       `🕒 Thời gian báo cáo: ${formatNowDateTime()}`,
-      `✅ Tổng số điểm đã khảo sát: ${records.length} điểm`,
+      `✅ Tổng điểm trong gói: ${records.length} điểm (${regionBreakdown})`,
       `📍 Danh sách mã điểm (${records.length}): ${doneStts || 'Chưa có'}`,
       `📦 Gói dữ liệu (1 file): ${prefix}.zip`
     ].join('\n');
@@ -2681,13 +3234,72 @@
       navigator.clipboard.writeText(url).then(() => showToast('Đã copy đường link mở trên điện thoại!'));
     });
 
+    // 3 Region buttons on Tab 1
+    document.querySelectorAll('#regionSelectorGrid [data-region]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const reg = btn.getAttribute('data-region');
+        if (!reg || reg === state.currentRegion) return;
+        const hasPhotos = !!(state.currentPhotos.TongQuan || state.currentPhotos.Can1 || state.currentPhotos.Can2);
+        const curSaved = getRecord(state.currentPlotStt);
+        if (!curSaved && (hasPhotos || state.isCurrentFormDirty)) {
+          const targetNext = getFirstUnsavedSttForRegion(reg);
+          const meta = getRegionMeta(reg);
+          showModal({
+            title: `Chuyển sang vùng ${meta.khuVuc} (${targetNext})?`,
+            html: `<p>Điểm <strong>${state.currentPlotStt}</strong> đang có dữ liệu chưa lưu. Bạn muốn <strong>Lưu ${state.currentPlotStt} trước</strong> hay <strong>Chuyển sang ${meta.khuVuc} (${targetNext}) luôn</strong>?</p>`,
+            buttons: [
+              { label: 'Ở lại', className: 'btn btn-outline btn-sm' },
+              {
+                label: `Sang ${meta.khuVuc} luôn`,
+                className: 'btn btn-danger btn-sm',
+                onClick: () => switchRegion(reg, { manual: true })
+              },
+              {
+                label: `💾 Lưu ${state.currentPlotStt} & Sang ${targetNext}`,
+                className: 'btn btn-yellow btn-sm',
+                onClick: async () => {
+                  const saved = await handleSaveSurveyRecord({ silentPopup: true });
+                  if (saved) switchRegion(reg, { manual: true });
+                }
+              }
+            ]
+          });
+          return;
+        }
+        switchRegion(reg, { manual: true });
+      });
+    });
+
+    // Surveyor once-per-day controls
     document.getElementById('surveyorInput').addEventListener('input', (e) => {
       state.surveyorName = e.target.value;
       localStorage.setItem('ksl_surveyorName', state.surveyorName);
-      document.getElementById('surveyorCodeBadge').textContent = getSurveyorCode(state.surveyorName);
+      document.getElementById('surveyorCodeBadge').textContent = state.surveyorName.trim() ? getSurveyorCode(state.surveyorName) : 'Chưa nhập';
       reStampExistingPhotos();
       updateExportPreviewUI();
     });
+
+    const btnConfirmSurv = document.getElementById('btnConfirmSurveyorToday');
+    if (btnConfirmSurv) {
+      btnConfirmSurv.addEventListener('click', () => {
+        const val = document.getElementById('surveyorInput').value;
+        if (!confirmSurveyorForToday(val)) {
+          showToast('Vui lòng nhập họ tên người khảo sát trước!', 'warn');
+          document.getElementById('surveyorInput').focus();
+          return;
+        }
+        showToast(`✅ Đã chốt người khảo sát "${state.surveyorName}" cho ngày ${state.surveyorDate}!`);
+      });
+    }
+
+    const btnEditSurv = document.getElementById('btnEditSurveyorName');
+    if (btnEditSurv) {
+      btnEditSurv.addEventListener('click', () => {
+        state.isEditingSurveyor = true;
+        updateSurveyorHeaderUI();
+        document.getElementById('surveyorInput').focus();
+      });
+    }
 
     document.getElementById('plotSelectQuick').addEventListener('change', (e) => {
       selectPlotIntoForm(e.target.value, { panMap: true });
@@ -2937,7 +3549,30 @@
 
     document.getElementById('btnFitAllPlots').addEventListener('click', fitAllSavedPlotsOnMap);
 
-    // Tab 3: List controls
+    const btnToggleBoundaries = document.getElementById('btnToggleBoundaries');
+    if (btnToggleBoundaries) {
+      btnToggleBoundaries.addEventListener('click', () => {
+        state.showBoundaries = !state.showBoundaries;
+        localStorage.setItem('ksl_showBoundaries', String(state.showBoundaries));
+        renderRegionBoundaries();
+      });
+    }
+
+    // Tab 3: List controls & region filters
+    document.querySelectorAll('#listRegionFilterChips [data-list-region]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.listRegionFilter = btn.getAttribute('data-list-region') || 'ALL';
+        updateHeaderAndProgressUI();
+      });
+    });
+
+    // Tab 4: Export region filter chips
+    document.querySelectorAll('#exportRegionFilterChips [data-export-region]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.exportRegionFilter = btn.getAttribute('data-export-region') || 'ALL';
+        updateHeaderAndProgressUI();
+      });
+    });
     document.getElementById('btnExportMasterJSON').addEventListener('click', exportMasterRegistryJSON);
     document.getElementById('btnDownloadMasterJSON2')?.addEventListener('click', exportMasterRegistryJSON);
 
@@ -2975,7 +3610,8 @@
               }
               state.surveyRecords.clear();
               state.masterPlots.clear();
-              selectPlotIntoForm('CT01', { panMap: false });
+              const defStt = `${getRegionMeta(state.currentRegion).shortCode}01`;
+              selectPlotIntoForm(defStt, { panMap: false });
               updateHeaderAndProgressUI();
               refreshMapMarkers();
               showToast('Đã xóa toàn bộ dữ liệu cũ');
@@ -3047,7 +3683,7 @@
 
   function registerServiceWorker() {
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-      navigator.serviceWorker.register('./sw.js?v=3.8').then(reg => {
+      navigator.serviceWorker.register('./sw.js?v=4.0', { scope: './' }).then(reg => {
         if (reg && reg.update) reg.update();
       }).catch(() => {});
     }
@@ -3062,8 +3698,10 @@
     initMaps();
     initCompassListener();
     updateHeaderAndProgressUI();
-    selectPlotIntoForm('CT01', { panMap: true, autoGetGPS: true });
+    const initialStt = getFirstUnsavedSttForRegion(state.currentRegion);
+    selectPlotIntoForm(initialStt, { panMap: true, autoGetGPS: true });
     registerServiceWorker();
+    maybePromptSurveyorOnceToday();
   }
 
   document.addEventListener('DOMContentLoaded', bootstrap);

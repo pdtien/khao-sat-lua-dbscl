@@ -1,3 +1,4 @@
+// Auto-updated for 3-region survey (CAN_THO / DONG_THAP / TRA_VINH)
 window.DBSCL_PRESETS = {
   "demo_5_ct": [
     {
@@ -11,7 +12,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trung Hưng",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-GPS01",
-      "areaHa": 29.4
+      "areaHa": 29.4,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT02",
@@ -24,7 +26,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trung Hưng",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-GPS02",
-      "areaHa": 16.06
+      "areaHa": 16.06,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT03",
@@ -37,7 +40,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trung Hưng",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-GPS03",
-      "areaHa": 13.12
+      "areaHa": 13.12,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT04",
@@ -50,7 +54,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trung Hưng",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-GPS04",
-      "areaHa": 11.49
+      "areaHa": 11.49,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT05",
@@ -63,7 +68,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trung Hưng",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-GPS05",
-      "areaHa": 11.0
+      "areaHa": 11.0,
+      "maNhom": "CAN_THO"
     }
   ],
   "can_tho_50": [
@@ -78,7 +84,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trung Hưng",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-GPS01",
-      "areaHa": 29.4
+      "areaHa": 29.4,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT02",
@@ -91,7 +98,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trung Hưng",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-GPS02",
-      "areaHa": 16.06
+      "areaHa": 16.06,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT03",
@@ -104,7 +112,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trung Hưng",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-GPS03",
-      "areaHa": 13.12
+      "areaHa": 13.12,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT04",
@@ -117,7 +126,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trung Hưng",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-GPS04",
-      "areaHa": 11.49
+      "areaHa": 11.49,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT05",
@@ -130,7 +140,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trung Hưng",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-GPS05",
-      "areaHa": 11.0
+      "areaHa": 11.0,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT06",
@@ -143,7 +154,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trung Hưng",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-GPS06",
-      "areaHa": 10.17
+      "areaHa": 10.17,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT07",
@@ -156,7 +168,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trung Hưng",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-GPS07",
-      "areaHa": 8.77
+      "areaHa": 8.77,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT08",
@@ -169,7 +182,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trung Hưng",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-GPS08",
-      "areaHa": 8.07
+      "areaHa": 8.07,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT09",
@@ -182,7 +196,8 @@ window.DBSCL_PRESETS = {
       "xa": "Phường Trung Nhứt",
       "huyen": "Q. Thốt Nốt",
       "origId": "CT-GPS09",
-      "areaHa": 21.56
+      "areaHa": 21.56,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT10",
@@ -195,7 +210,8 @@ window.DBSCL_PRESETS = {
       "xa": "Phường Trung Nhứt",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-GPS10",
-      "areaHa": 16.58
+      "areaHa": 16.58,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT11",
@@ -208,7 +224,8 @@ window.DBSCL_PRESETS = {
       "xa": "Phường Trung Nhứt",
       "huyen": "Q. Thốt Nốt",
       "origId": "CT-GPS11",
-      "areaHa": 12.95
+      "areaHa": 12.95,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT12",
@@ -221,7 +238,8 @@ window.DBSCL_PRESETS = {
       "xa": "Phường Trung Nhứt",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-GPS12",
-      "areaHa": 12.94
+      "areaHa": 12.94,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT13",
@@ -234,7 +252,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Cờ Đỏ",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-GPS13",
-      "areaHa": 17.44
+      "areaHa": 17.44,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT14",
@@ -247,7 +266,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Cờ Đỏ",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-GPS14",
-      "areaHa": 12.2
+      "areaHa": 12.2,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT15",
@@ -260,7 +280,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Cờ Đỏ",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-GPS15",
-      "areaHa": 6.3
+      "areaHa": 6.3,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT16",
@@ -273,7 +294,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Thạnh Phú",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-GPS16",
-      "areaHa": 3.82
+      "areaHa": 3.82,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT17",
@@ -286,7 +308,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Thạnh Phú",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-GPS17",
-      "areaHa": 1.58
+      "areaHa": 1.58,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT18",
@@ -299,7 +322,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Đông Hiệp",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-GPS18",
-      "areaHa": 6.74
+      "areaHa": 6.74,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT19",
@@ -312,7 +336,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Đông Hiệp",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-GPS19",
-      "areaHa": 2.45
+      "areaHa": 2.45,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT20",
@@ -325,7 +350,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Thới Hưng",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-GPS20",
-      "areaHa": 2.61
+      "areaHa": 2.61,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT21",
@@ -338,7 +364,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Vĩnh Trinh",
       "huyen": "H. Vĩnh Thạnh",
       "origId": "CT-GPS21",
-      "areaHa": 11.6
+      "areaHa": 11.6,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT22",
@@ -351,7 +378,8 @@ window.DBSCL_PRESETS = {
       "xa": "Phường Thới Long",
       "huyen": "Q. Thốt Nốt",
       "origId": "CT-GPS22",
-      "areaHa": 11.44
+      "areaHa": 11.44,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT23",
@@ -364,7 +392,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Thạnh Quới",
       "huyen": "H. Vĩnh Thạnh",
       "origId": "CT-GPS23",
-      "areaHa": 7.41
+      "areaHa": 7.41,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT24",
@@ -377,7 +406,8 @@ window.DBSCL_PRESETS = {
       "xa": "Phường Thới Long",
       "huyen": "Q. Thốt Nốt",
       "origId": "CT-GPS24",
-      "areaHa": 7.06
+      "areaHa": 7.06,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT25",
@@ -390,7 +420,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Vĩnh Trinh",
       "huyen": "H. Vĩnh Thạnh",
       "origId": "CT-GPS25",
-      "areaHa": 7.06
+      "areaHa": 7.06,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT26",
@@ -403,7 +434,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trung Hưng",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-ALT01",
-      "areaHa": 14.06
+      "areaHa": 14.06,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT27",
@@ -416,7 +448,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trung Hưng",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-ALT02",
-      "areaHa": 11.47
+      "areaHa": 11.47,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT28",
@@ -429,7 +462,8 @@ window.DBSCL_PRESETS = {
       "xa": "Phường Trung Nhứt",
       "huyen": "Q. Thốt Nốt",
       "origId": "CT-ALT03",
-      "areaHa": 10.33
+      "areaHa": 10.33,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT29",
@@ -442,7 +476,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trung Hưng",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-ALT04",
-      "areaHa": 10.15
+      "areaHa": 10.15,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT30",
@@ -455,7 +490,8 @@ window.DBSCL_PRESETS = {
       "xa": "Phường Trung Nhứt",
       "huyen": "Q. Thốt Nốt",
       "origId": "CT-ALT05",
-      "areaHa": 9.87
+      "areaHa": 9.87,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT31",
@@ -468,7 +504,8 @@ window.DBSCL_PRESETS = {
       "xa": "Phường Trung Nhứt",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-ALT06",
-      "areaHa": 9.11
+      "areaHa": 9.11,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT32",
@@ -481,7 +518,8 @@ window.DBSCL_PRESETS = {
       "xa": "Phường Trung Nhứt",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-ALT07",
-      "areaHa": 8.94
+      "areaHa": 8.94,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT33",
@@ -494,7 +532,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trung Hưng",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-ALT08",
-      "areaHa": 8.08
+      "areaHa": 8.08,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT34",
@@ -507,7 +546,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trung Hưng",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-ALT09",
-      "areaHa": 7.76
+      "areaHa": 7.76,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT35",
@@ -520,7 +560,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trung Hưng",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-ALT10",
-      "areaHa": 7.31
+      "areaHa": 7.31,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT36",
@@ -533,7 +574,8 @@ window.DBSCL_PRESETS = {
       "xa": "Phường Trung Nhứt",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-ALT11",
-      "areaHa": 7.28
+      "areaHa": 7.28,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT37",
@@ -546,7 +588,8 @@ window.DBSCL_PRESETS = {
       "xa": "Phường Trung Nhứt",
       "huyen": "Q. Thốt Nốt",
       "origId": "CT-ALT12",
-      "areaHa": 7.18
+      "areaHa": 7.18,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT38",
@@ -559,7 +602,8 @@ window.DBSCL_PRESETS = {
       "xa": "Phường Trung Nhứt",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-ALT13",
-      "areaHa": 6.79
+      "areaHa": 6.79,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT39",
@@ -572,7 +616,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trung Hưng",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-ALT14",
-      "areaHa": 6.63
+      "areaHa": 6.63,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT40",
@@ -585,7 +630,8 @@ window.DBSCL_PRESETS = {
       "xa": "Phường Trung Nhứt",
       "huyen": "H. Cờ Đỏ",
       "origId": "CT-ALT15",
-      "areaHa": 6.37
+      "areaHa": 6.37,
+      "maNhom": "CAN_THO"
     },
     {
       "stt": "CT41",
@@ -598,7 +644,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Mỹ Quí",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS01",
-      "areaHa": 734.68
+      "areaHa": 734.68,
+      "maNhom": "DONG_THAP"
     },
     {
       "stt": "CT42",
@@ -611,7 +658,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trường Xuân",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS02",
-      "areaHa": 466.63
+      "areaHa": 466.63,
+      "maNhom": "DONG_THAP"
     },
     {
       "stt": "CT43",
@@ -624,7 +672,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Mỹ Quí",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS03",
-      "areaHa": 305.64
+      "areaHa": 305.64,
+      "maNhom": "DONG_THAP"
     },
     {
       "stt": "CT44",
@@ -637,7 +686,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Tháp Mười",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS04",
-      "areaHa": 286.62
+      "areaHa": 286.62,
+      "maNhom": "DONG_THAP"
     },
     {
       "stt": "CT45",
@@ -650,7 +700,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Phương Thịnh",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS05",
-      "areaHa": 276.31
+      "areaHa": 276.31,
+      "maNhom": "DONG_THAP"
     },
     {
       "stt": "CT46",
@@ -663,7 +714,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trường Xuân",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS06",
-      "areaHa": 226.1
+      "areaHa": 226.1,
+      "maNhom": "DONG_THAP"
     },
     {
       "stt": "CT47",
@@ -676,7 +728,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trường Xuân",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS07",
-      "areaHa": 212.49
+      "areaHa": 212.49,
+      "maNhom": "DONG_THAP"
     },
     {
       "stt": "CT48",
@@ -689,7 +742,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Mỹ Quí",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS08",
-      "areaHa": 199.91
+      "areaHa": 199.91,
+      "maNhom": "DONG_THAP"
     },
     {
       "stt": "CT49",
@@ -702,7 +756,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trường Xuân",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS09",
-      "areaHa": 183.75
+      "areaHa": 183.75,
+      "maNhom": "DONG_THAP"
     },
     {
       "stt": "CT50",
@@ -715,12 +770,13 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trường Xuân",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS10",
-      "areaHa": 178.08
+      "areaHa": 178.08,
+      "maNhom": "DONG_THAP"
     }
   ],
   "dong_thap_50": [
     {
-      "stt": "CT01",
+      "stt": "DT01",
       "x": 105.74104,
       "y": 10.54623,
       "sowingDate": "12/10/2026",
@@ -730,10 +786,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Mỹ Quí",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS01",
-      "areaHa": 734.68
+      "areaHa": 734.68,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT02",
+      "stt": "DT02",
       "x": 105.7149,
       "y": 10.71155,
       "sowingDate": "15/10/2026",
@@ -743,10 +800,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trường Xuân",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS02",
-      "areaHa": 466.63
+      "areaHa": 466.63,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT03",
+      "stt": "DT03",
       "x": 105.73912,
       "y": 10.50427,
       "sowingDate": "18/10/2026",
@@ -756,10 +814,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Mỹ Quí",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS03",
-      "areaHa": 305.64
+      "areaHa": 305.64,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT04",
+      "stt": "DT04",
       "x": 105.79083,
       "y": 10.5775,
       "sowingDate": "20/10/2026",
@@ -769,10 +828,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Tháp Mười",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS04",
-      "areaHa": 286.62
+      "areaHa": 286.62,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT05",
+      "stt": "DT05",
       "x": 105.75065,
       "y": 10.6505,
       "sowingDate": "22/10/2026",
@@ -782,10 +842,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Phương Thịnh",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS05",
-      "areaHa": 276.31
+      "areaHa": 276.31,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT06",
+      "stt": "DT06",
       "x": 105.76607,
       "y": 10.63711,
       "sowingDate": "25/10/2026",
@@ -795,10 +856,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trường Xuân",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS06",
-      "areaHa": 226.1
+      "areaHa": 226.1,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT07",
+      "stt": "DT07",
       "x": 105.74436,
       "y": 10.60418,
       "sowingDate": "12/10/2026",
@@ -808,10 +870,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trường Xuân",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS07",
-      "areaHa": 212.49
+      "areaHa": 212.49,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT08",
+      "stt": "DT08",
       "x": 105.74813,
       "y": 10.57071,
       "sowingDate": "15/10/2026",
@@ -821,10 +884,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Mỹ Quí",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS08",
-      "areaHa": 199.91
+      "areaHa": 199.91,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT09",
+      "stt": "DT09",
       "x": 105.73826,
       "y": 10.6706,
       "sowingDate": "18/10/2026",
@@ -834,10 +898,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trường Xuân",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS09",
-      "areaHa": 183.75
+      "areaHa": 183.75,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT10",
+      "stt": "DT10",
       "x": 105.71897,
       "y": 10.67518,
       "sowingDate": "20/10/2026",
@@ -847,10 +912,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trường Xuân",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS10",
-      "areaHa": 178.08
+      "areaHa": 178.08,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT11",
+      "stt": "DT11",
       "x": 105.68725,
       "y": 10.72623,
       "sowingDate": "22/10/2026",
@@ -860,10 +926,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trường Xuân",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS11",
-      "areaHa": 174.53
+      "areaHa": 174.53,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT12",
+      "stt": "DT12",
       "x": 105.84272,
       "y": 10.61233,
       "sowingDate": "25/10/2026",
@@ -873,10 +940,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Đốc Binh Kiều",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS12",
-      "areaHa": 126.88
+      "areaHa": 126.88,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT13",
+      "stt": "DT13",
       "x": 105.7369,
       "y": 10.6441,
       "sowingDate": "12/10/2026",
@@ -886,10 +954,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Phương Thịnh",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS13",
-      "areaHa": 121.47
+      "areaHa": 121.47,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT14",
+      "stt": "DT14",
       "x": 105.76402,
       "y": 10.53673,
       "sowingDate": "15/10/2026",
@@ -899,10 +968,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Mỹ Quí",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS14",
-      "areaHa": 120.37
+      "areaHa": 120.37,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT15",
+      "stt": "DT15",
       "x": 105.79776,
       "y": 10.54682,
       "sowingDate": "18/10/2026",
@@ -912,10 +982,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Mỹ Quí",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS15",
-      "areaHa": 117.52
+      "areaHa": 117.52,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT16",
+      "stt": "DT16",
       "x": 105.85445,
       "y": 10.57905,
       "sowingDate": "20/10/2026",
@@ -925,10 +996,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Đốc Binh Kiều",
       "huyen": "H. Tháp Mười",
       "origId": "DT-GPS16",
-      "areaHa": 109.41
+      "areaHa": 109.41,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT17",
+      "stt": "DT17",
       "x": 105.64007,
       "y": 10.58484,
       "sowingDate": "22/10/2026",
@@ -938,10 +1010,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Phú Cường",
       "huyen": "H. Cao Lãnh",
       "origId": "DT-GPS17",
-      "areaHa": 344.92
+      "areaHa": 344.92,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT18",
+      "stt": "DT18",
       "x": 105.66233,
       "y": 10.64393,
       "sowingDate": "25/10/2026",
@@ -951,10 +1024,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Phương Thịnh",
       "huyen": "H. Cao Lãnh",
       "origId": "DT-GPS18",
-      "areaHa": 153.99
+      "areaHa": 153.99,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT19",
+      "stt": "DT19",
       "x": 105.69028,
       "y": 10.52112,
       "sowingDate": "12/10/2026",
@@ -964,10 +1038,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Ba Sao",
       "huyen": "H. Cao Lãnh",
       "origId": "DT-GPS19",
-      "areaHa": 152.26
+      "areaHa": 152.26,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT20",
+      "stt": "DT20",
       "x": 105.70419,
       "y": 10.49486,
       "sowingDate": "15/10/2026",
@@ -977,10 +1052,11 @@ window.DBSCL_PRESETS = {
       "xa": "Phường Mỹ Trà",
       "huyen": "H. Cao Lãnh",
       "origId": "DT-GPS20",
-      "areaHa": 145.42
+      "areaHa": 145.42,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT21",
+      "stt": "DT21",
       "x": 105.60211,
       "y": 10.54922,
       "sowingDate": "18/10/2026",
@@ -990,10 +1066,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Phong Mỹ",
       "huyen": "H. Cao Lãnh",
       "origId": "DT-GPS21",
-      "areaHa": 139.87
+      "areaHa": 139.87,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT22",
+      "stt": "DT22",
       "x": 105.70848,
       "y": 10.59207,
       "sowingDate": "20/10/2026",
@@ -1003,10 +1080,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Ba Sao",
       "huyen": "H. Cao Lãnh",
       "origId": "DT-GPS22",
-      "areaHa": 127.94
+      "areaHa": 127.94,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT23",
+      "stt": "DT23",
       "x": 105.74885,
       "y": 10.48234,
       "sowingDate": "22/10/2026",
@@ -1016,10 +1094,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Mỹ Thọ",
       "huyen": "H. Cao Lãnh",
       "origId": "DT-GPS23",
-      "areaHa": 122.75
+      "areaHa": 122.75,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT24",
+      "stt": "DT24",
       "x": 105.66844,
       "y": 10.54325,
       "sowingDate": "25/10/2026",
@@ -1029,10 +1108,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Ba Sao",
       "huyen": "H. Cao Lãnh",
       "origId": "DT-GPS24",
-      "areaHa": 117.28
+      "areaHa": 117.28,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT25",
+      "stt": "DT25",
       "x": 105.66431,
       "y": 10.62,
       "sowingDate": "12/10/2026",
@@ -1042,10 +1122,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Phương Thịnh",
       "huyen": "H. Cao Lãnh",
       "origId": "DT-GPS25",
-      "areaHa": 99.47
+      "areaHa": 99.47,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT26",
+      "stt": "DT26",
       "x": 105.65319,
       "y": 10.57059,
       "sowingDate": "15/10/2026",
@@ -1055,10 +1136,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Phương Thịnh",
       "huyen": "H. Cao Lãnh",
       "origId": "DT-GPS26",
-      "areaHa": 96.6
+      "areaHa": 96.6,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT27",
+      "stt": "DT27",
       "x": 105.43334,
       "y": 10.84993,
       "sowingDate": "18/10/2026",
@@ -1068,10 +1150,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Tân Hồng",
       "huyen": "H. Tân Hồng",
       "origId": "DT-GPS27",
-      "areaHa": 463.0
+      "areaHa": 463.0,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT28",
+      "stt": "DT28",
       "x": 105.38609,
       "y": 10.89826,
       "sowingDate": "20/10/2026",
@@ -1081,10 +1164,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Tân Hồng",
       "huyen": "H. Tân Hồng",
       "origId": "DT-GPS28",
-      "areaHa": 263.21
+      "areaHa": 263.21,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT29",
+      "stt": "DT29",
       "x": 105.44675,
       "y": 10.92278,
       "sowingDate": "22/10/2026",
@@ -1094,10 +1178,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Tân Hộ Cơ",
       "huyen": "H. Tân Hồng",
       "origId": "DT-GPS29",
-      "areaHa": 223.52
+      "areaHa": 223.52,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT30",
+      "stt": "DT30",
       "x": 105.42191,
       "y": 10.94378,
       "sowingDate": "25/10/2026",
@@ -1107,10 +1192,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Tân Hộ Cơ",
       "huyen": "H. Tân Hồng",
       "origId": "DT-GPS30",
-      "areaHa": 221.47
+      "areaHa": 221.47,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT31",
+      "stt": "DT31",
       "x": 105.43562,
       "y": 10.828,
       "sowingDate": "12/10/2026",
@@ -1120,10 +1206,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Tân Hồng",
       "huyen": "H. Tân Hồng",
       "origId": "DT-GPS31",
-      "areaHa": 199.45
+      "areaHa": 199.45,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT32",
+      "stt": "DT32",
       "x": 105.45367,
       "y": 10.8271,
       "sowingDate": "15/10/2026",
@@ -1133,10 +1220,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Tân Hồng",
       "huyen": "H. Tân Hồng",
       "origId": "DT-GPS32",
-      "areaHa": 183.03
+      "areaHa": 183.03,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT33",
+      "stt": "DT33",
       "x": 105.49036,
       "y": 10.8844,
       "sowingDate": "18/10/2026",
@@ -1146,10 +1234,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Tân Hộ Cơ",
       "huyen": "H. Tân Hồng",
       "origId": "DT-GPS33",
-      "areaHa": 148.99
+      "areaHa": 148.99,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT34",
+      "stt": "DT34",
       "x": 105.40703,
       "y": 10.79701,
       "sowingDate": "20/10/2026",
@@ -1159,10 +1248,11 @@ window.DBSCL_PRESETS = {
       "xa": "Phường An Bình",
       "huyen": "TP. Hồng Ngự",
       "origId": "DT-GPS34",
-      "areaHa": 312.58
+      "areaHa": 312.58,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT35",
+      "stt": "DT35",
       "x": 105.3294,
       "y": 10.8313,
       "sowingDate": "22/10/2026",
@@ -1172,10 +1262,11 @@ window.DBSCL_PRESETS = {
       "xa": "Phường Thường Lạc",
       "huyen": "TP. Hồng Ngự",
       "origId": "DT-GPS35",
-      "areaHa": 113.17
+      "areaHa": 113.17,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT36",
+      "stt": "DT36",
       "x": 105.39881,
       "y": 10.67502,
       "sowingDate": "25/10/2026",
@@ -1185,10 +1276,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã An Long",
       "huyen": "H. Tam Nông",
       "origId": "DT-GPS36",
-      "areaHa": 83.65
+      "areaHa": 83.65,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT37",
+      "stt": "DT37",
       "x": 105.50206,
       "y": 10.79395,
       "sowingDate": "12/10/2026",
@@ -1198,10 +1290,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Tam Nông",
       "huyen": "H. Tam Nông",
       "origId": "DT-GPS37",
-      "areaHa": 82.5
+      "areaHa": 82.5,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT38",
+      "stt": "DT38",
       "x": 105.37206,
       "y": 10.62375,
       "sowingDate": "15/10/2026",
@@ -1211,10 +1304,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Tân Long",
       "huyen": "H. Thanh Bình",
       "origId": "DT-GPS38",
-      "areaHa": 82.39
+      "areaHa": 82.39,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT39",
+      "stt": "DT39",
       "x": 105.39951,
       "y": 10.60252,
       "sowingDate": "18/10/2026",
@@ -1224,10 +1318,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Tân Long",
       "huyen": "H. Thanh Bình",
       "origId": "DT-GPS39",
-      "areaHa": 54.67
+      "areaHa": 54.67,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT40",
+      "stt": "DT40",
       "x": 105.4762,
       "y": 10.57391,
       "sowingDate": "20/10/2026",
@@ -1237,10 +1332,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Thanh Bình",
       "huyen": "H. Thanh Bình",
       "origId": "DT-GPS40",
-      "areaHa": 51.66
+      "areaHa": 51.66,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT41",
+      "stt": "DT41",
       "x": 105.78394,
       "y": 10.56992,
       "sowingDate": "22/10/2026",
@@ -1250,10 +1346,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Mỹ Quí",
       "huyen": "H. Tháp Mười",
       "origId": "DT-ALT01",
-      "areaHa": 131.53
+      "areaHa": 131.53,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT42",
+      "stt": "DT42",
       "x": 105.74166,
       "y": 10.61614,
       "sowingDate": "25/10/2026",
@@ -1263,10 +1360,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trường Xuân",
       "huyen": "H. Tháp Mười",
       "origId": "DT-ALT02",
-      "areaHa": 121.88
+      "areaHa": 121.88,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT43",
+      "stt": "DT43",
       "x": 105.70639,
       "y": 10.58027,
       "sowingDate": "12/10/2026",
@@ -1276,10 +1374,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Ba Sao",
       "huyen": "H. Cao Lãnh",
       "origId": "DT-ALT03",
-      "areaHa": 120.6
+      "areaHa": 120.6,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT44",
+      "stt": "DT44",
       "x": 105.72689,
       "y": 10.642,
       "sowingDate": "15/10/2026",
@@ -1289,10 +1388,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Phương Thịnh",
       "huyen": "H. Tháp Mười",
       "origId": "DT-ALT04",
-      "areaHa": 119.24
+      "areaHa": 119.24,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT45",
+      "stt": "DT45",
       "x": 105.74692,
       "y": 10.67679,
       "sowingDate": "18/10/2026",
@@ -1302,10 +1402,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trường Xuân",
       "huyen": "H. Tháp Mười",
       "origId": "DT-ALT05",
-      "areaHa": 114.59
+      "areaHa": 114.59,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT46",
+      "stt": "DT46",
       "x": 105.66798,
       "y": 10.71924,
       "sowingDate": "20/10/2026",
@@ -1315,10 +1416,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trường Xuân",
       "huyen": "H. Tháp Mười",
       "origId": "DT-ALT06",
-      "areaHa": 106.94
+      "areaHa": 106.94,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT47",
+      "stt": "DT47",
       "x": 105.77203,
       "y": 10.56917,
       "sowingDate": "22/10/2026",
@@ -1328,10 +1430,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Mỹ Quí",
       "huyen": "H. Tháp Mười",
       "origId": "DT-ALT07",
-      "areaHa": 105.44
+      "areaHa": 105.44,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT48",
+      "stt": "DT48",
       "x": 105.70597,
       "y": 10.61982,
       "sowingDate": "25/10/2026",
@@ -1341,10 +1444,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Trường Xuân",
       "huyen": "H. Tháp Mười",
       "origId": "DT-ALT08",
-      "areaHa": 104.67
+      "areaHa": 104.67,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT49",
+      "stt": "DT49",
       "x": 105.70341,
       "y": 10.63532,
       "sowingDate": "12/10/2026",
@@ -1354,10 +1458,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Phương Thịnh",
       "huyen": "H. Tháp Mười",
       "origId": "DT-ALT09",
-      "areaHa": 99.38
+      "areaHa": 99.38,
+      "maNhom": "DONG_THAP"
     },
     {
-      "stt": "CT50",
+      "stt": "DT50",
       "x": 105.77685,
       "y": 10.49436,
       "sowingDate": "15/10/2026",
@@ -1367,12 +1472,13 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Mỹ Quí",
       "huyen": "H. Tháp Mười",
       "origId": "DT-ALT10",
-      "areaHa": 98.3
+      "areaHa": 98.3,
+      "maNhom": "DONG_THAP"
     }
   ],
   "tra_vinh_50": [
     {
-      "stt": "CT01",
+      "stt": "TV01",
       "x": 106.40047,
       "y": 9.82643,
       "sowingDate": "12/10/2026",
@@ -1382,10 +1488,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Vinh Kim",
       "huyen": "H. Cầu Ngang",
       "origId": "TV-GPS01",
-      "areaHa": 72.62
+      "areaHa": 72.62,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT02",
+      "stt": "TV02",
       "x": 106.35467,
       "y": 9.79035,
       "sowingDate": "15/10/2026",
@@ -1395,10 +1502,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Nhị Trường",
       "huyen": "H. Cầu Ngang",
       "origId": "TV-GPS02",
-      "areaHa": 59.31
+      "areaHa": 59.31,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT03",
+      "stt": "TV03",
       "x": 106.48262,
       "y": 9.79943,
       "sowingDate": "18/10/2026",
@@ -1408,10 +1516,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Mỹ Long",
       "huyen": "H. Cầu Ngang",
       "origId": "TV-GPS03",
-      "areaHa": 36.99
+      "areaHa": 36.99,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT04",
+      "stt": "TV04",
       "x": 106.355,
       "y": 9.77737,
       "sowingDate": "20/10/2026",
@@ -1421,10 +1530,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Nhị Trường",
       "huyen": "H. Cầu Ngang",
       "origId": "TV-GPS04",
-      "areaHa": 36.57
+      "areaHa": 36.57,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT05",
+      "stt": "TV05",
       "x": 106.39167,
       "y": 9.78114,
       "sowingDate": "22/10/2026",
@@ -1434,10 +1544,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Nhị Trường",
       "huyen": "H. Cầu Ngang",
       "origId": "TV-GPS05",
-      "areaHa": 36.56
+      "areaHa": 36.56,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT06",
+      "stt": "TV06",
       "x": 106.42696,
       "y": 9.76128,
       "sowingDate": "25/10/2026",
@@ -1447,10 +1558,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Hiệp Mỹ",
       "huyen": "H. Cầu Ngang",
       "origId": "TV-GPS06",
-      "areaHa": 24.98
+      "areaHa": 24.98,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT07",
+      "stt": "TV07",
       "x": 106.35363,
       "y": 9.75009,
       "sowingDate": "12/10/2026",
@@ -1460,10 +1572,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Nhị Trường",
       "huyen": "H. Cầu Ngang",
       "origId": "TV-GPS07",
-      "areaHa": 23.5
+      "areaHa": 23.5,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT08",
+      "stt": "TV08",
       "x": 106.37952,
       "y": 9.77174,
       "sowingDate": "15/10/2026",
@@ -1473,10 +1586,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Nhị Trường",
       "huyen": "H. Cầu Ngang",
       "origId": "TV-GPS08",
-      "areaHa": 23.12
+      "areaHa": 23.12,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT09",
+      "stt": "TV09",
       "x": 106.3792,
       "y": 9.79775,
       "sowingDate": "18/10/2026",
@@ -1486,10 +1600,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Nhị Trường",
       "huyen": "H. Cầu Ngang",
       "origId": "TV-GPS09",
-      "areaHa": 23.1
+      "areaHa": 23.1,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT10",
+      "stt": "TV10",
       "x": 106.3865,
       "y": 9.81282,
       "sowingDate": "20/10/2026",
@@ -1499,10 +1614,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Nhị Trường",
       "huyen": "H. Cầu Ngang",
       "origId": "TV-GPS10",
-      "areaHa": 21.83
+      "areaHa": 21.83,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT11",
+      "stt": "TV11",
       "x": 106.40211,
       "y": 9.69862,
       "sowingDate": "22/10/2026",
@@ -1512,10 +1628,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Ngũ Lạc",
       "huyen": "H. Cầu Ngang",
       "origId": "TV-GPS11",
-      "areaHa": 21.79
+      "areaHa": 21.79,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT12",
+      "stt": "TV12",
       "x": 106.49847,
       "y": 9.78853,
       "sowingDate": "25/10/2026",
@@ -1525,10 +1642,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Mỹ Long",
       "huyen": "H. Cầu Ngang",
       "origId": "TV-GPS12",
-      "areaHa": 20.39
+      "areaHa": 20.39,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT13",
+      "stt": "TV13",
       "x": 106.31437,
       "y": 9.77881,
       "sowingDate": "12/10/2026",
@@ -1538,10 +1656,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Tập Sơn",
       "huyen": "H. Trà Cú",
       "origId": "TV-GPS13",
-      "areaHa": 86.26
+      "areaHa": 86.26,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT14",
+      "stt": "TV14",
       "x": 106.32579,
       "y": 9.74254,
       "sowingDate": "15/10/2026",
@@ -1551,10 +1670,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Long Hiệp",
       "huyen": "H. Trà Cú",
       "origId": "TV-GPS14",
-      "areaHa": 59.74
+      "areaHa": 59.74,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT15",
+      "stt": "TV15",
       "x": 106.2869,
       "y": 9.76044,
       "sowingDate": "18/10/2026",
@@ -1564,10 +1684,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Tập Sơn",
       "huyen": "H. Trà Cú",
       "origId": "TV-GPS15",
-      "areaHa": 47.85
+      "areaHa": 47.85,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT16",
+      "stt": "TV16",
       "x": 106.32497,
       "y": 9.75677,
       "sowingDate": "20/10/2026",
@@ -1577,10 +1698,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Tập Sơn",
       "huyen": "H. Trà Cú",
       "origId": "TV-GPS16",
-      "areaHa": 43.44
+      "areaHa": 43.44,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT17",
+      "stt": "TV17",
       "x": 106.27781,
       "y": 9.73575,
       "sowingDate": "22/10/2026",
@@ -1590,10 +1712,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Tập Sơn",
       "huyen": "H. Trà Cú",
       "origId": "TV-GPS17",
-      "areaHa": 42.54
+      "areaHa": 42.54,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT18",
+      "stt": "TV18",
       "x": 106.34015,
       "y": 9.73335,
       "sowingDate": "25/10/2026",
@@ -1603,10 +1726,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Long Hiệp",
       "huyen": "H. Trà Cú",
       "origId": "TV-GPS18",
-      "areaHa": 38.12
+      "areaHa": 38.12,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT19",
+      "stt": "TV19",
       "x": 106.26958,
       "y": 9.75484,
       "sowingDate": "12/10/2026",
@@ -1616,10 +1740,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Tập Sơn",
       "huyen": "H. Trà Cú",
       "origId": "TV-GPS19",
-      "areaHa": 36.68
+      "areaHa": 36.68,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT20",
+      "stt": "TV20",
       "x": 106.25069,
       "y": 9.72715,
       "sowingDate": "15/10/2026",
@@ -1629,10 +1754,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Tập Sơn",
       "huyen": "H. Trà Cú",
       "origId": "TV-GPS20",
-      "areaHa": 34.72
+      "areaHa": 34.72,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT21",
+      "stt": "TV21",
       "x": 106.33714,
       "y": 9.75471,
       "sowingDate": "18/10/2026",
@@ -1642,10 +1768,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Long Hiệp",
       "huyen": "H. Trà Cú",
       "origId": "TV-GPS21",
-      "areaHa": 33.24
+      "areaHa": 33.24,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT22",
+      "stt": "TV22",
       "x": 106.3303,
       "y": 9.7874,
       "sowingDate": "20/10/2026",
@@ -1655,10 +1782,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Tập Sơn",
       "huyen": "H. Trà Cú",
       "origId": "TV-GPS22",
-      "areaHa": 27.33
+      "areaHa": 27.33,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT23",
+      "stt": "TV23",
       "x": 106.37135,
       "y": 9.68264,
       "sowingDate": "22/10/2026",
@@ -1668,10 +1796,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Đôn Châu",
       "huyen": "H. Duyên Hải",
       "origId": "TV-GPS23",
-      "areaHa": 72.17
+      "areaHa": 72.17,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT24",
+      "stt": "TV24",
       "x": 106.3549,
       "y": 9.67967,
       "sowingDate": "25/10/2026",
@@ -1681,10 +1810,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Đôn Châu",
       "huyen": "H. Duyên Hải",
       "origId": "TV-GPS24",
-      "areaHa": 49.03
+      "areaHa": 49.03,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT25",
+      "stt": "TV25",
       "x": 106.32986,
       "y": 9.66805,
       "sowingDate": "12/10/2026",
@@ -1694,10 +1824,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Đôn Châu",
       "huyen": "H. Duyên Hải",
       "origId": "TV-GPS25",
-      "areaHa": 41.81
+      "areaHa": 41.81,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT26",
+      "stt": "TV26",
       "x": 106.34537,
       "y": 9.67042,
       "sowingDate": "15/10/2026",
@@ -1707,10 +1838,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Đôn Châu",
       "huyen": "H. Duyên Hải",
       "origId": "TV-GPS26",
-      "areaHa": 25.58
+      "areaHa": 25.58,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT27",
+      "stt": "TV27",
       "x": 106.36913,
       "y": 9.6683,
       "sowingDate": "18/10/2026",
@@ -1720,10 +1852,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Đôn Châu",
       "huyen": "H. Duyên Hải",
       "origId": "TV-GPS27",
-      "areaHa": 22.94
+      "areaHa": 22.94,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT28",
+      "stt": "TV28",
       "x": 106.38274,
       "y": 9.6881,
       "sowingDate": "20/10/2026",
@@ -1733,10 +1866,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Đôn Châu",
       "huyen": "H. Duyên Hải",
       "origId": "TV-GPS28",
-      "areaHa": 21.04
+      "areaHa": 21.04,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT29",
+      "stt": "TV29",
       "x": 106.37008,
       "y": 9.89756,
       "sowingDate": "22/10/2026",
@@ -1746,10 +1880,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Hưng Mỹ",
       "huyen": "H. Châu Thành",
       "origId": "TV-GPS29",
-      "areaHa": 83.83
+      "areaHa": 83.83,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT30",
+      "stt": "TV30",
       "x": 106.32928,
       "y": 9.80977,
       "sowingDate": "25/10/2026",
@@ -1759,10 +1894,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Châu Thành",
       "huyen": "H. Châu Thành",
       "origId": "TV-GPS30",
-      "areaHa": 37.62
+      "areaHa": 37.62,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT31",
+      "stt": "TV31",
       "x": 106.36876,
       "y": 9.82297,
       "sowingDate": "12/10/2026",
@@ -1772,10 +1908,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Châu Thành",
       "huyen": "H. Châu Thành",
       "origId": "TV-GPS31",
-      "areaHa": 31.94
+      "areaHa": 31.94,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT32",
+      "stt": "TV32",
       "x": 106.33945,
       "y": 9.83198,
       "sowingDate": "15/10/2026",
@@ -1785,10 +1922,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Châu Thành",
       "huyen": "H. Châu Thành",
       "origId": "TV-GPS32",
-      "areaHa": 30.07
+      "areaHa": 30.07,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT33",
+      "stt": "TV33",
       "x": 106.36669,
       "y": 9.83769,
       "sowingDate": "18/10/2026",
@@ -1798,10 +1936,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Châu Thành",
       "huyen": "H. Châu Thành",
       "origId": "TV-GPS33",
-      "areaHa": 22.83
+      "areaHa": 22.83,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT34",
+      "stt": "TV34",
       "x": 106.38723,
       "y": 9.90502,
       "sowingDate": "20/10/2026",
@@ -1811,10 +1950,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Hưng Mỹ",
       "huyen": "H. Châu Thành",
       "origId": "TV-GPS34",
-      "areaHa": 21.03
+      "areaHa": 21.03,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT35",
+      "stt": "TV35",
       "x": 106.10229,
       "y": 9.834,
       "sowingDate": "22/10/2026",
@@ -1824,10 +1964,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Phong Thạnh",
       "huyen": "H. Cầu Kè",
       "origId": "TV-GPS35",
-      "areaHa": 71.15
+      "areaHa": 71.15,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT36",
+      "stt": "TV36",
       "x": 106.16533,
       "y": 9.80026,
       "sowingDate": "25/10/2026",
@@ -1837,10 +1978,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Tiểu Cần",
       "huyen": "H. Tiểu Cần",
       "origId": "TV-GPS36",
-      "areaHa": 53.67
+      "areaHa": 53.67,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT37",
+      "stt": "TV37",
       "x": 106.08125,
       "y": 9.90313,
       "sowingDate": "12/10/2026",
@@ -1850,10 +1992,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Cầu Kè",
       "huyen": "H. Cầu Kè",
       "origId": "TV-GPS37",
-      "areaHa": 35.18
+      "areaHa": 35.18,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT38",
+      "stt": "TV38",
       "x": 106.2162,
       "y": 9.81326,
       "sowingDate": "15/10/2026",
@@ -1863,10 +2006,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Tập Ngãi",
       "huyen": "H. Tiểu Cần",
       "origId": "TV-GPS38",
-      "areaHa": 30.84
+      "areaHa": 30.84,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT39",
+      "stt": "TV39",
       "x": 106.0761,
       "y": 9.87338,
       "sowingDate": "18/10/2026",
@@ -1876,10 +2020,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Cầu Kè",
       "huyen": "H. Cầu Kè",
       "origId": "TV-GPS39",
-      "areaHa": 27.17
+      "areaHa": 27.17,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT40",
+      "stt": "TV40",
       "x": 106.23559,
       "y": 9.76145,
       "sowingDate": "20/10/2026",
@@ -1889,10 +2034,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Hùng Hòa",
       "huyen": "H. Tiểu Cần",
       "origId": "TV-GPS40",
-      "areaHa": 24.06
+      "areaHa": 24.06,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT41",
+      "stt": "TV41",
       "x": 106.31507,
       "y": 9.77048,
       "sowingDate": "22/10/2026",
@@ -1902,10 +2048,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Tập Sơn",
       "huyen": "H. Trà Cú",
       "origId": "TV-ALT01",
-      "areaHa": 80.63
+      "areaHa": 80.63,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT42",
+      "stt": "TV42",
       "x": 106.09602,
       "y": 9.82374,
       "sowingDate": "25/10/2026",
@@ -1915,10 +2062,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Phong Thạnh",
       "huyen": "H. Cầu Kè",
       "origId": "TV-ALT02",
-      "areaHa": 55.57
+      "areaHa": 55.57,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT43",
+      "stt": "TV43",
       "x": 106.35891,
       "y": 9.78387,
       "sowingDate": "12/10/2026",
@@ -1928,10 +2076,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Nhị Trường",
       "huyen": "H. Cầu Ngang",
       "origId": "TV-ALT03",
-      "areaHa": 46.78
+      "areaHa": 46.78,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT44",
+      "stt": "TV44",
       "x": 106.36221,
       "y": 9.89436,
       "sowingDate": "15/10/2026",
@@ -1941,10 +2090,11 @@ window.DBSCL_PRESETS = {
       "xa": "Phường Trà Vinh",
       "huyen": "TP. Trà Vinh",
       "origId": "TV-ALT04",
-      "areaHa": 38.65
+      "areaHa": 38.65,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT45",
+      "stt": "TV45",
       "x": 106.29706,
       "y": 9.75999,
       "sowingDate": "18/10/2026",
@@ -1954,10 +2104,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Tập Sơn",
       "huyen": "H. Trà Cú",
       "origId": "TV-ALT05",
-      "areaHa": 36.95
+      "areaHa": 36.95,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT46",
+      "stt": "TV46",
       "x": 106.3295,
       "y": 9.73669,
       "sowingDate": "20/10/2026",
@@ -1967,10 +2118,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Long Hiệp",
       "huyen": "H. Trà Cú",
       "origId": "TV-ALT06",
-      "areaHa": 35.86
+      "areaHa": 35.86,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT47",
+      "stt": "TV47",
       "x": 106.3184,
       "y": 9.7557,
       "sowingDate": "22/10/2026",
@@ -1980,10 +2132,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Tập Sơn",
       "huyen": "H. Trà Cú",
       "origId": "TV-ALT07",
-      "areaHa": 30.81
+      "areaHa": 30.81,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT48",
+      "stt": "TV48",
       "x": 106.35751,
       "y": 9.67591,
       "sowingDate": "25/10/2026",
@@ -1993,10 +2146,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Đôn Châu",
       "huyen": "H. Duyên Hải",
       "origId": "TV-ALT08",
-      "areaHa": 30.45
+      "areaHa": 30.45,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT49",
+      "stt": "TV49",
       "x": 106.36449,
       "y": 9.83237,
       "sowingDate": "12/10/2026",
@@ -2006,10 +2160,11 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Châu Thành",
       "huyen": "H. Châu Thành",
       "origId": "TV-ALT09",
-      "areaHa": 29.88
+      "areaHa": 29.88,
+      "maNhom": "TRA_VINH"
     },
     {
-      "stt": "CT50",
+      "stt": "TV50",
       "x": 106.34419,
       "y": 9.74051,
       "sowingDate": "15/10/2026",
@@ -2019,7 +2174,8 @@ window.DBSCL_PRESETS = {
       "xa": "Xã Long Hiệp",
       "huyen": "H. Trà Cú",
       "origId": "TV-ALT10",
-      "areaHa": 29.65
+      "areaHa": 29.65,
+      "maNhom": "TRA_VINH"
     }
   ]
 };

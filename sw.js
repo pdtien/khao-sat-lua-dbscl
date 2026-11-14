@@ -1,11 +1,11 @@
-const CACHE_NAME = 'khao-sat-lua-pwa-v3.8';
+const CACHE_NAME = 'khao-sat-lua-pwa-v4.0';
 const TILE_CACHE_NAME = 'khao-sat-lua-tiles-v1';
 
 const STATIC_ASSETS = [
   './',
   './index.html',
-  './styles.css?v=3.8',
-  './app.js?v=3.8',
+  './styles.css?v=4.0',
+  './app.js?v=4.0',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -14,7 +14,8 @@ const STATIC_ASSETS = [
   './vendor/jszip.min.js',
   './vendor/xlsx.full.min.js',
   './vendor/qrcode.min.js',
-  './data/presets_dbscl.js?v=3.8'
+  './data/region_bounds.js?v=4.0',
+  './data/presets_dbscl.js?v=4.0'
 ];
 
 self.addEventListener('install', (event) => {
@@ -30,7 +31,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((keys) => {
       return Promise.all(
         keys.map((key) => {
-          if (key !== CACHE_NAME && key !== TILE_CACHE_NAME) {
+          if (key.startsWith('khao-sat-lua-pwa-') && key !== CACHE_NAME) {
             return caches.delete(key);
           }
         })

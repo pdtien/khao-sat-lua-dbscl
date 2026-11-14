@@ -1,7 +1,7 @@
 {
-  "name": "Khảo Sát Lúa Thực Địa ĐBSCL - 9 Đợt × 50 Điểm",
-  "short_name": "Khảo Sát Lúa",
-  "description": "Ứng dụng PWA thu thập dữ liệu khảo sát lúa thực địa 9 đợt trên 50 điểm ruộng cố định, bản đồ vệ tinh dẫn đường, chụp 3 ảnh đóng dấu Code và gửi gói ZIP qua Zalo.",
+  "name": "Khảo Sát Lúa 3 Vùng ĐBSCL (Cần Thơ • Đồng Tháp • Trà Vinh) - Đợt 1",
+  "short_name": "KS Lúa 3 Vùng",
+  "description": "Ứng dụng PWA khảo sát lúa thực địa 3 vùng (Cần Thơ CT, Đồng Tháp DT, Trà Vinh TV — 50 điểm/vùng), tự động nhận diện vùng theo GPS + chọn tay, chụp 3 ảnh đóng dấu mã vùng và xuất gói .ZIP / nộp bảo mật.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
