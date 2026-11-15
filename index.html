@@ -11,7 +11,7 @@
   <link rel="icon" type="image/png" href="./icons/icon-192.png" />
   <link rel="apple-touch-icon" href="./icons/icon-192.png" />
   <link rel="stylesheet" href="./vendor/leaflet.css" />
-  <link rel="stylesheet" href="./styles.css?v=4.1" />
+  <link rel="stylesheet" href="./styles.css?v=4.2" />
   <script>
     (function () {
       try {
@@ -23,7 +23,7 @@
         if ('caches' in window) {
           caches.keys().then(function (keys) {
             keys.forEach(function (k) {
-              if (k.indexOf('khao-sat-lua-pwa-v') === 0 && k !== 'khao-sat-lua-pwa-v4.1') {
+              if (k.indexOf('khao-sat-lua-pwa-v') === 0 && k !== 'khao-sat-lua-pwa-v4.2') {
                 caches.delete(k);
               }
             });
@@ -920,8 +920,8 @@
   <script src="./vendor/jszip.min.js"></script>
   <script src="./vendor/xlsx.full.min.js"></script>
   <script src="./vendor/qrcode.min.js"></script>
-  <script src="./data/region_bounds.js?v=4.1"></script>
-  <script src="./data/presets_dbscl.js?v=4.1"></script>
-  <script src="./app.js?v=4.1"></script>
+  <script src="./data/region_bounds.js?v=4.2"></script>
+  <script src="./data/presets_dbscl.js?v=4.2"></script>
+  <script src="./app.js?v=4.2"></script>
 </body>
 </html>

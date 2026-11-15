@@ -1907,15 +1907,49 @@
     });
   }
 
+  // Ảnh camera điện thoại thường 3–8 MB/ảnh (12–50 MP). Lưu nguyên vào máy sẽ làm đầy bộ nhớ,
+  // làm treo trình duyệt khi nhiều điểm và làm gói nộp rất nặng → thu về cạnh dài tối đa
+  // RAW_MAX_DIM px (vẫn đủ nét cho nhận dạng/AI), JPEG 0.85 (~300–700 KB/ảnh).
+  const RAW_MAX_DIM = 1920;
+  function downscaleImageFile(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          let w = img.naturalWidth, h = img.naturalHeight;
+          const k = Math.min(1, RAW_MAX_DIM / Math.max(w, h));
+          w = Math.round(w * k);
+          h = Math.round(h * k);
+          const c = document.createElement('canvas');
+          c.width = w;
+          c.height = h;
+          c.getContext('2d').drawImage(img, 0, 0, w, h);
+          const out = c.toDataURL('image/jpeg', 0.85);
+          c.width = c.height = 0; // giải phóng bộ nhớ canvas sớm (quan trọng trên iPhone)
+          resolve(out);
+        } catch (err) {
+          reject(err);
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Không đọc được ảnh'));
+      };
+      img.src = url;
+    });
+  }
+
   async function handlePhotoFileInput(file, typeKey) {
     if (!file) return;
     const myGen = state.photoStampGeneration;
     const myStt = state.currentPlotStt;
-    const reader = new FileReader();
-    reader.onload = async (e) => {
+    (async () => {
       try {
+        const rawDataUrl = await downscaleImageFile(file);
         if (state.photoStampGeneration !== myGen || state.currentPlotStt !== myStt) return;
-        const rawDataUrl = e.target.result;
         const stamped = await stampImageWithCode(rawDataUrl, typeKey);
         if (state.photoStampGeneration !== myGen || state.currentPlotStt !== myStt) return;
         state.currentPhotos[typeKey] = stamped;
@@ -1925,8 +1959,7 @@
       } catch (err) {
         showToast('Lỗi xử lý ảnh: ' + err.message, 'error');
       }
-    };
-    reader.readAsDataURL(file);
+    })();
   }
 
   async function reStampExistingPhotos() {
@@ -2146,7 +2179,19 @@
       savedAt: nowIso
     };
 
-    await dbPut('survey_records', record);
+    try {
+      await dbPut('survey_records', record);
+    } catch (err) {
+      // Trước đây lỗi này bị nuốt im lặng → người khảo sát tưởng đã lưu.
+      const full = err && (err.name === 'QuotaExceededError' || /quota/i.test(err.message || ''));
+      showModal({
+        title: '❌ CHƯA LƯU ĐƯỢC ĐIỂM ' + stt,
+        html: full
+          ? '<p><strong>Bộ nhớ trình duyệt trên máy đã đầy.</strong></p><p>Hãy vào Mục 4 <strong>NỘP</strong> các điểm đã đo (hoặc lưu gói .ZIP vào máy), xóa bớt ảnh/video không cần trong máy, rồi bấm Lưu lại. Dữ liệu điểm này vẫn còn trên màn hình.</p>'
+          : '<p>Lỗi khi ghi vào bộ nhớ máy: ' + ((err && err.message) || err) + '</p><p>Dữ liệu điểm này vẫn còn trên màn hình, hãy bấm Lưu lại.</p>'
+      });
+      return null;
+    }
     state.surveyRecords.set(record.id, record);
 
     const updatedMaster = {
@@ -2321,7 +2366,7 @@
   // Gửi 1 gói nhỏ lên Apps Script. CHỈ coi là thành công khi đọc được phản hồi ok:true
   // kèm mã file (zipId / xlsxUrl). Không dùng mode:'no-cors' nữa vì chế độ đó không đọc
   // được phản hồi → trước đây app báo "đã gửi" kể cả khi máy chủ không nhận.
-  const UPLOAD_TIMEOUT_MS = 180000;
+  const UPLOAD_TIMEOUT_MS = 300000; // 5 phút/gói: mạng 3G ngoài đồng tải lên rất chậm
   const UPLOAD_MAX_RETRY = 3;
 
   async function postPayloadToAppsScript(gasUrl, payloadObj) {
@@ -2383,8 +2428,8 @@
 
   // Chia các điểm thành nhiều gói nhỏ (~6 MB ảnh, tối đa 10 điểm/gói) để Apps Script
   // không bị quá giới hạn dung lượng/bộ nhớ và điện thoại không bị treo khi mã hóa base64.
-  const UPLOAD_BATCH_MAX_BYTES = 6 * 1024 * 1024;
-  const UPLOAD_BATCH_MAX_POINTS = 10;
+  const UPLOAD_BATCH_MAX_BYTES = 4 * 1024 * 1024; // ~4 MB/gói: mạng yếu vẫn gửi kịp trong thời gian chờ
+  const UPLOAD_BATCH_MAX_POINTS = 8;
 
   function splitRecordsIntoBatches(records, includeRaw) {
     const batches = [];
@@ -2461,6 +2506,13 @@
     steps.push({ text: `Bảng tổng hợp Excel ${allRecords.length} điểm`, status: 'pending' });
 
     state.isUploading = true;
+    // Giữ màn hình sáng khi đang nộp: điện thoại tắt màn hình / chuyển app khác
+    // thì trình duyệt sẽ ngắt kết nối giữa chừng.
+    let wakeLock = null;
+    try {
+      if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request('screen');
+    } catch (_) {}
+    showToast('📶 Đang nộp — giữ màn hình mở, đừng chuyển sang ứng dụng khác!', 'warn', 6000);
     const okRecords = [];
     const failed = [];
     let photoCount = 0;
@@ -2575,6 +2627,7 @@
       showToast('Lỗi khi nộp dữ liệu: ' + err.message, 'error');
     } finally {
       state.isUploading = false;
+      try { if (wakeLock) await wakeLock.release(); } catch (_) {}
     }
   }
 
@@ -3941,10 +3994,14 @@
 
   function registerServiceWorker() {
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-      navigator.serviceWorker.register('./sw.js?v=4.0', { scope: './' }).then(reg => {
+      navigator.serviceWorker.register('./sw.js?v=4.2', { scope: './' }).then(reg => {
         if (reg && reg.update) reg.update();
       }).catch(() => {});
     }
+    // Xin trình duyệt giữ dữ liệu lâu dài (không tự xóa ảnh/điểm khi máy thiếu bộ nhớ)
+    try {
+      if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+    } catch (_) {}
   }
 
   async function bootstrap() {
