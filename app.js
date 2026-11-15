@@ -1262,6 +1262,12 @@
 
       if (options.autoGetGPS) {
         requestCurrentGPS(true);
+      } else if (options.gpsReminder) {
+        // Không tự đo khi vừa bấm qua điểm mới: lúc này người khảo sát thường chưa tới ruộng,
+        // đo ngay sẽ lấy nhầm vị trí đang đi đường.
+        stopGpsSession();
+        const statusEl = document.getElementById('gpsStatusText');
+        if (statusEl) statusEl.innerHTML = `🛰️ Tới đứng <strong>giữa ruộng ${stt}</strong> rồi bấm <strong>📍 ĐỊNH VỊ GPS TẠI ĐÂY</strong>`;
       }
     }
 
@@ -1299,7 +1305,7 @@
             label: `Bỏ qua, sang ${nextStt}`,
             className: 'btn btn-danger btn-sm',
             onClick: () => {
-              selectPlotIntoForm(nextStt, { panMap: true, autoGetGPS: true });
+              selectPlotIntoForm(nextStt, { panMap: true, gpsReminder: true });
               window.scrollTo({ top: 0, behavior: 'smooth' });
               showToast(`Đã chuyển sang điểm mới ${nextStt}`);
             }
@@ -1310,7 +1316,7 @@
             onClick: async () => {
               const rec = await handleSaveSurveyRecord({ silentPopup: true });
               if (rec) {
-                selectPlotIntoForm(nextStt, { panMap: true, autoGetGPS: true });
+                selectPlotIntoForm(nextStt, { panMap: true, gpsReminder: true });
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 showToast(`✅ Đã lưu ${curStt} và chuyển sang điểm mới ${nextStt}!`);
               }
@@ -1321,9 +1327,9 @@
       return;
     }
 
-    selectPlotIntoForm(nextStt, { panMap: true, autoGetGPS: true });
+    selectPlotIntoForm(nextStt, { panMap: true, gpsReminder: true });
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    showToast(`👉 Đã chuyển sang điểm mới: ${nextStt}. Đang lấy GPS...`);
+    showToast(`👉 Đã chuyển sang điểm mới: ${nextStt}. Tới ruộng rồi bấm Định vị GPS`);
   }
 
   // --- INTERACTIVE SATELLITE MAPS ---
@@ -1582,8 +1588,117 @@
     }
   }
 
-  // --- GPS HIGH ACCURACY ---
-  function requestCurrentGPS(setIntoForm = true) {
+  // --- GPS HIGH ACCURACY (đo liên tục, lọc sai số, lấy trung bình) ---
+  // Lần đo đầu tiên của điện thoại thường lấy từ Wi-Fi/trạm phát sóng (sai số 20–100 m).
+  // Vì vậy app đo liên tục bằng watchPosition, bỏ các mẫu sai số lớn và chỉ chốt khi
+  // đủ mẫu tốt (≤ GPS_TARGET_ACC m) hoặc hết GPS_MAX_WAIT_MS thì dùng các mẫu tốt nhất có được.
+  const GPS_TARGET_ACC = 8;        // m — đạt ngưỡng này đủ GPS_MIN_GOOD_SAMPLES mẫu thì chốt ngay
+  const GPS_MIN_GOOD_SAMPLES = 4;  // số mẫu tốt tối thiểu để chốt sớm
+  const GPS_MAX_WAIT_MS = 45000;   // tối đa 45 giây đo
+  const GPS_WARN_ACC = 20;         // m — kết quả cuối vẫn tệ hơn mức này thì cảnh báo mạnh
+  let gpsSession = null;
+
+  function drawGpsAccuracyCircles(lat, lon, acc) {
+    if (state.miniMap) {
+      if (state.userMiniCircle) state.miniMap.removeLayer(state.userMiniCircle);
+      state.userMiniCircle = L.circle([lat, lon], {
+        radius: acc, color: '#38bdf8', fillColor: '#38bdf8', fillOpacity: 0.22, weight: 2
+      }).addTo(state.miniMap);
+    }
+    if (state.fullMap) {
+      if (state.userFullCircle) state.fullMap.removeLayer(state.userFullCircle);
+      state.userFullCircle = L.circle([lat, lon], {
+        radius: acc, color: '#38bdf8', fillColor: '#38bdf8', fillOpacity: 0.22, weight: 2
+      }).addTo(state.fullMap);
+    }
+  }
+
+  // Gộp các mẫu tốt nhất: giữ mẫu có sai số ≤ max(1.5 × mẫu tốt nhất, ngưỡng mục tiêu),
+  // lấy trung bình có trọng số 1/acc² (mẫu càng chính xác càng nặng ký).
+  function combineGpsSamples(samples) {
+    if (!samples.length) return null;
+    const best = Math.min(...samples.map(s => s.acc));
+    const cutoff = Math.max(best * 1.5, GPS_TARGET_ACC);
+    const used = samples.filter(s => s.acc <= cutoff);
+    let wSum = 0, latSum = 0, lonSum = 0;
+    used.forEach(s => {
+      const w = 1 / (s.acc * s.acc);
+      wSum += w; latSum += s.lat * w; lonSum += s.lon * w;
+    });
+    const accs = used.map(s => s.acc).sort((a, b) => a - b);
+    const medianAcc = accs[Math.floor(accs.length / 2)];
+    return {
+      lat: latSum / wSum,
+      lon: lonSum / wSum,
+      acc: Math.max(1, Math.round(medianAcc)),
+      bestAcc: Math.round(best),
+      used: used.length,
+      total: samples.length
+    };
+  }
+
+  function stopGpsSession() {
+    if (!gpsSession) return;
+    if (gpsSession.watchId !== null) navigator.geolocation.clearWatch(gpsSession.watchId);
+    clearTimeout(gpsSession.timer);
+    clearInterval(gpsSession.ticker);
+    gpsSession = null;
+    const btn = document.getElementById('btnGetGPS');
+    if (btn) btn.innerHTML = '📍 ĐỊNH VỊ GPS TẠI ĐÂY';
+  }
+
+  function applyGpsResult(res, setIntoForm, onDone) {
+    const { lat, lon, acc } = res;
+    state.userGPS.x = lon;
+    state.userGPS.y = lat;
+    state.userGPS.accuracy = acc;
+    state.userGPS.samples = res.used;
+    state.userGPS.updatedAt = new Date();
+
+    const statusEl = document.getElementById('gpsStatusText');
+    const warn = acc > GPS_WARN_ACC;
+    statusEl.innerHTML = `${warn ? '⚠️' : '✅'} Đã chốt GPS: <strong>X=${lon.toFixed(6)}, Y=${lat.toFixed(6)}</strong> ` +
+      `(Sai số <strong>±${acc}m</strong>, trung bình ${res.used}/${res.total} mẫu)` +
+      (warn ? `<br><span style="color:#fca5a5;">Sai số còn lớn — hãy ra chỗ trống trời, bấm đo lại, hoặc chạm đúng giữa ruộng trên bản đồ.</span>` : '');
+    if (warn) showToast(`GPS chỉ đạt ±${acc}m — nên đo lại ở chỗ trống trời`, 'warn', 5000);
+
+    drawGpsAccuracyCircles(lat, lon, acc);
+
+    if (setIntoForm) {
+      const detected = detectRegionByCoords(lon, lat);
+      state.lastGpsRegion = detected;
+      const hasAnyPhoto = !!(state.currentPhotos.TongQuan || state.currentPhotos.Can1 || state.currentPhotos.Can2);
+      const canAutoSwitch = !state.regionManuallyPinned &&
+        !state.isCurrentFormDirty &&
+        !hasAnyPhoto &&
+        !getRecord(state.currentPlotStt) &&
+        detected &&
+        detected.maNhom !== state.currentRegion;
+
+      if (canAutoSwitch) {
+        state.currentRegion = detected.maNhom;
+        localStorage.setItem('ksl_lastRegion', detected.maNhom);
+        const autoStt = getFirstUnsavedSttForRegion(detected.maNhom);
+        selectPlotIntoForm(autoStt, { panMap: false });
+        setFormCoordinates(lon, lat, false);
+        updateHeaderAndProgressUI();
+        showToast(`📍 GPS xác định ở ${detected.khuVuc} → Tự động chọn mã ${autoStt} (${detected.maNhom})!`);
+      } else if (state.isCoordLocked) {
+        showToast('Tọa độ điểm đang khóa — bấm "Mở khóa" nếu muốn thay bằng GPS mới', 'warn');
+      } else {
+        setFormCoordinates(lon, lat, true);
+      }
+      if (state.miniMap) state.miniMap.setView([lat, lon], 18);
+    } else {
+      state.lastGpsRegion = detectRegionByCoords(lon, lat);
+      updateRegionStatusBanner();
+    }
+    if (typeof onDone === 'function') onDone(res);
+  }
+
+  // options.onFirstFix(lat, lon) — gọi ngay khi có mẫu đầu tiên (để kéo bản đồ tới)
+  // options.onDone(res) — gọi khi đã chốt kết quả
+  function requestCurrentGPS(setIntoForm = true, options = {}) {
     const statusEl = document.getElementById('gpsStatusText');
     if (!navigator.geolocation) {
       statusEl.textContent = '⚠️ Trình duyệt không hỗ trợ GPS';
@@ -1591,67 +1706,88 @@
       return;
     }
 
-    statusEl.textContent = '🛰️ Đang thu tín hiệu vệ tinh GPS thực địa...';
-    navigator.geolocation.getCurrentPosition(
+    // Đang đo mà bấm lại → chốt ngay với các mẫu tốt nhất hiện có
+    if (gpsSession) {
+      const s = gpsSession;
+      const res = combineGpsSamples(s.samples);
+      stopGpsSession();
+      if (res) applyGpsResult(res, s.setIntoForm, s.onDone);
+      else statusEl.textContent = '⚠️ Chưa thu được mẫu GPS nào. Bấm lại để đo tiếp.';
+      return;
+    }
+
+    const session = {
+      watchId: null,
+      samples: [],
+      startedAt: Date.now(),
+      setIntoForm,
+      onDone: options.onDone,
+      gotFirstFix: false,
+      timer: null,
+      ticker: null
+    };
+    gpsSession = session;
+
+    const btn = document.getElementById('btnGetGPS');
+    if (btn) btn.innerHTML = '⏹️ CHỐT NGAY (đang đo...)';
+
+    const renderProgress = () => {
+      const secs = Math.round((Date.now() - session.startedAt) / 1000);
+      const cur = combineGpsSamples(session.samples);
+      const good = session.samples.filter(s => s.acc <= GPS_TARGET_ACC).length;
+      statusEl.innerHTML = cur
+        ? `🛰️ Đang đo GPS (${secs}s): sai số hiện tại <strong>±${cur.acc}m</strong> (tốt nhất ±${cur.bestAcc}m) • ${good}/${GPS_MIN_GOOD_SAMPLES} mẫu đạt ≤${GPS_TARGET_ACC}m<br><span style="font-size:0.78rem;color:#cbd5e1;">Đứng yên giữa ruộng, chỗ trống trời. Bấm "Chốt ngay" nếu không muốn chờ.</span>`
+        : `🛰️ Đang bắt tín hiệu vệ tinh GPS (${secs}s)... Đứng yên chỗ trống trời.`;
+    };
+
+    const finish = () => {
+      if (gpsSession !== session) return;
+      const res = combineGpsSamples(session.samples);
+      stopGpsSession();
+      if (res) {
+        applyGpsResult(res, setIntoForm, options.onDone);
+      } else {
+        statusEl.textContent = '⚠️ Không bắt được GPS sau 45 giây. Hãy bật Vị trí (chế độ chính xác cao), ra chỗ trống trời rồi bấm lại, hoặc chạm vào giữa ruộng trên bản đồ.';
+        showToast('Không bắt được GPS — hãy bật Vị trí chính xác cao hoặc chạm vào bản đồ!', 'warn');
+      }
+    };
+
+    session.watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        const lon = pos.coords.longitude;
-        const lat = pos.coords.latitude;
-        const acc = Math.round(pos.coords.accuracy || 10);
+        if (gpsSession !== session) return;
+        const acc = pos.coords.accuracy;
+        if (!(acc > 0)) return; // không có sai số → không tin được
+        // Bỏ mẫu cũ lưu sẵn trong máy (trước khi bắt đầu đo)
+        if (pos.timestamp && pos.timestamp < session.startedAt - 2000) return;
+        session.samples.push({ lat: pos.coords.latitude, lon: pos.coords.longitude, acc, t: pos.timestamp || Date.now() });
+        if (session.samples.length > 60) session.samples.shift();
 
-        state.userGPS.x = lon;
-        state.userGPS.y = lat;
-        state.userGPS.accuracy = acc;
-        state.userGPS.updatedAt = new Date();
-
-        statusEl.innerHTML = `✅ Đã lấy GPS: <strong>X=${lon.toFixed(6)}, Y=${lat.toFixed(6)}</strong> (Sai số <strong>±${acc}m</strong>)`;
-
-        if (state.miniMap) {
-          if (state.userMiniCircle) state.miniMap.removeLayer(state.userMiniCircle);
-          state.userMiniCircle = L.circle([lat, lon], {
-            radius: acc, color: '#38bdf8', fillColor: '#38bdf8', fillOpacity: 0.22, weight: 2
-          }).addTo(state.miniMap);
+        const cur = combineGpsSamples(session.samples);
+        drawGpsAccuracyCircles(cur.lat, cur.lon, cur.acc);
+        if (!session.gotFirstFix) {
+          session.gotFirstFix = true;
+          if (typeof options.onFirstFix === 'function') options.onFirstFix(cur.lat, cur.lon);
         }
-        if (state.fullMap) {
-          if (state.userFullCircle) state.fullMap.removeLayer(state.userFullCircle);
-          state.userFullCircle = L.circle([lat, lon], {
-            radius: acc, color: '#38bdf8', fillColor: '#38bdf8', fillOpacity: 0.22, weight: 2
-          }).addTo(state.fullMap);
-        }
+        renderProgress();
 
-        if (setIntoForm) {
-          const detected = detectRegionByCoords(lon, lat);
-          state.lastGpsRegion = detected;
-          const hasAnyPhoto = !!(state.currentPhotos.TongQuan || state.currentPhotos.Can1 || state.currentPhotos.Can2);
-          const canAutoSwitch = !state.regionManuallyPinned &&
-            !state.isCurrentFormDirty &&
-            !hasAnyPhoto &&
-            !getRecord(state.currentPlotStt) &&
-            detected &&
-            detected.maNhom !== state.currentRegion;
-
-          if (canAutoSwitch) {
-            state.currentRegion = detected.maNhom;
-            localStorage.setItem('ksl_lastRegion', detected.maNhom);
-            const autoStt = getFirstUnsavedSttForRegion(detected.maNhom);
-            selectPlotIntoForm(autoStt, { panMap: false });
-            setFormCoordinates(lon, lat, false);
-            updateHeaderAndProgressUI();
-            showToast(`📍 GPS xác định ở ${detected.khuVuc} → Tự động chọn mã ${autoStt} (${detected.maNhom})!`);
-          } else {
-            setFormCoordinates(lon, lat, true);
-          }
-          if (state.miniMap) state.miniMap.setView([lat, lon], 18);
-        } else {
-          state.lastGpsRegion = detectRegionByCoords(lon, lat);
-          updateRegionStatusBanner();
-        }
+        const good = session.samples.filter(s => s.acc <= GPS_TARGET_ACC).length;
+        if (good >= GPS_MIN_GOOD_SAMPLES) finish();
       },
       (err) => {
-        statusEl.textContent = `⚠️ Không lấy được GPS tự động (${err.message}). Hãy chạm trực tiếp vào ruộng trên bản đồ vệ tinh bên dưới để lấy tọa độ!`;
-        showToast('Hãy bật Vị trí (Location) trên điện thoại hoặc chạm trực tiếp vào bản đồ vệ tinh!', 'warn');
+        if (gpsSession !== session) return;
+        // Lỗi tạm thời (TIMEOUT / POSITION_UNAVAILABLE) thì đo tiếp; bị từ chối quyền thì dừng.
+        if (err.code === 1) {
+          stopGpsSession();
+          statusEl.textContent = '⚠️ Bạn chưa cho phép truy cập Vị trí. Hãy bật quyền Vị trí cho trình duyệt rồi bấm lại, hoặc chạm vào giữa ruộng trên bản đồ.';
+          showToast('Chưa cho phép quyền Vị trí cho trang này!', 'error');
+        }
       },
-      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
     );
+
+    renderProgress();
+    session.ticker = setInterval(renderProgress, 1000);
+    session.timer = setTimeout(finish, GPS_MAX_WAIT_MS);
   }
 
   function initCompassListener() {
@@ -2004,7 +2140,8 @@
         x: state.userGPS.x,
         y: state.userGPS.y,
         accuracy: state.userGPS.accuracy,
-        heading: state.userGPS.heading
+        heading: state.userGPS.heading,
+        samples: state.userGPS.samples || null
       },
       savedAt: nowIso
     };
@@ -2079,7 +2216,7 @@
             label: `➕ BẤM QUA ĐIỂM MỚI (${nextStt}) ➡️`,
             className: 'btn btn-yellow btn-sm',
             onClick: () => {
-              selectPlotIntoForm(nextStt, { panMap: true, autoGetGPS: true });
+              selectPlotIntoForm(nextStt, { panMap: true, gpsReminder: true });
               window.scrollTo({ top: 0, behavior: 'smooth' });
               showToast(`👉 Đã chuyển sang điểm mới: ${nextStt}`);
             }
@@ -2181,52 +2318,105 @@
     });
   }
 
-  async function postPayloadToAppsScript(gasUrl, payloadObj, onUploadProgress) {
+  // Gửi 1 gói nhỏ lên Apps Script. CHỈ coi là thành công khi đọc được phản hồi ok:true
+  // kèm mã file (zipId / xlsxUrl). Không dùng mode:'no-cors' nữa vì chế độ đó không đọc
+  // được phản hồi → trước đây app báo "đã gửi" kể cả khi máy chủ không nhận.
+  const UPLOAD_TIMEOUT_MS = 180000;
+  const UPLOAD_MAX_RETRY = 3;
+
+  async function postPayloadToAppsScript(gasUrl, payloadObj) {
     const jsonStr = JSON.stringify(payloadObj);
-    if (typeof onUploadProgress === 'function') onUploadProgress(35);
-
-    try {
-      if (typeof onUploadProgress === 'function') onUploadProgress(65);
-      const resp = await fetch(gasUrl, {
-        method: 'POST',
-        body: jsonStr,
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-      });
-      if (typeof onUploadProgress === 'function') onUploadProgress(95);
-
-      if (resp.ok) {
-        try {
-          const parsed = await resp.json();
-          if (parsed && parsed.ok === false) {
-            throw new Error(parsed.error || 'Apps Script báo lỗi');
-          }
-          return parsed;
-        } catch (_) {
-          return { ok: true };
-        }
-      }
-      throw new Error(`HTTP ${resp.status}`);
-    } catch (err) {
-      // Fallback: in case browser CORS blocks reading redirected response body, send with mode: 'no-cors'
-      if (typeof onUploadProgress === 'function') onUploadProgress(80);
+    let lastErr = null;
+    for (let attempt = 1; attempt <= UPLOAD_MAX_RETRY; attempt++) {
+      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = ctrl ? setTimeout(() => ctrl.abort(), UPLOAD_TIMEOUT_MS) : null;
       try {
-        await fetch(gasUrl, {
+        const resp = await fetch(gasUrl, {
           method: 'POST',
-          mode: 'no-cors',
           body: jsonStr,
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          redirect: 'follow',
+          signal: ctrl ? ctrl.signal : undefined
         });
-        if (typeof onUploadProgress === 'function') onUploadProgress(100);
-        return { ok: true, fallbackNoCors: true };
-      } catch (err2) {
-        throw new Error('Lỗi gửi dữ liệu: ' + (err.message || err2.message));
+        if (!resp.ok) throw new Error(`Máy chủ trả lỗi HTTP ${resp.status}`);
+        const text = await resp.text();
+        let parsed;
+        try {
+          parsed = JSON.parse(text);
+        } catch (_) {
+          throw new Error('Máy chủ không trả biên nhận hợp lệ (có thể Apps Script chưa triển khai quyền "Bất kỳ ai")');
+        }
+        if (!parsed || parsed.ok !== true) {
+          // Lỗi do máy chủ báo về (VD: hết dung lượng Drive) → không thử lại vô ích
+          const e = new Error('Máy chủ báo lỗi: ' + ((parsed && parsed.error) || 'không rõ'));
+          e.fatal = true;
+          throw e;
+        }
+        return parsed;
+      } catch (err) {
+        lastErr = err.name === 'AbortError' ? new Error('Quá thời gian chờ máy chủ (mạng yếu)') : err;
+        if (err.fatal || attempt === UPLOAD_MAX_RETRY) break;
+        await new Promise(r => setTimeout(r, 2000 * attempt));
+      } finally {
+        if (timer) clearTimeout(timer);
       }
+    }
+    throw lastErr || new Error('Lỗi gửi dữ liệu');
+  }
+
+  function isRecordSynced(r) {
+    return !!(r && r.syncedAt && r.savedAt && r.syncedAt >= r.savedAt);
+  }
+
+  function estimateRecordUploadBytes(r, includeRaw) {
+    let bytes = 4000; // phần chữ (Excel/CSV/GeoJSON/KML) của 1 điểm
+    if (r.photos) {
+      ['TongQuan', 'Can1', 'Can2'].forEach(tk => {
+        const p = r.photos[tk];
+        if (!p) return;
+        if (p.stampedDataUrl) bytes += p.stampedDataUrl.length * 0.75;
+        if (includeRaw && p.rawDataUrl) bytes += p.rawDataUrl.length * 0.75;
+      });
+    }
+    return bytes;
+  }
+
+  // Chia các điểm thành nhiều gói nhỏ (~6 MB ảnh, tối đa 10 điểm/gói) để Apps Script
+  // không bị quá giới hạn dung lượng/bộ nhớ và điện thoại không bị treo khi mã hóa base64.
+  const UPLOAD_BATCH_MAX_BYTES = 6 * 1024 * 1024;
+  const UPLOAD_BATCH_MAX_POINTS = 10;
+
+  function splitRecordsIntoBatches(records, includeRaw) {
+    const batches = [];
+    let cur = [];
+    let curBytes = 0;
+    records.forEach(r => {
+      const b = estimateRecordUploadBytes(r, includeRaw);
+      if (cur.length && (curBytes + b > UPLOAD_BATCH_MAX_BYTES || cur.length >= UPLOAD_BATCH_MAX_POINTS)) {
+        batches.push(cur);
+        cur = [];
+        curBytes = 0;
+      }
+      cur.push(r);
+      curBytes += b;
+    });
+    if (cur.length) batches.push(cur);
+    return batches;
+  }
+
+  async function markRecordsSynced(records, info) {
+    for (const r of records) {
+      const rec = state.surveyRecords.get(r.id);
+      if (!rec) continue;
+      rec.syncedAt = new Date().toISOString();
+      rec.syncFile = info.fileName;
+      await dbPut('survey_records', rec);
     }
   }
 
   async function pushPackageDirectlyToGoogleDrive() {
-    const records = getRecordsForExport();
-    if (records.length === 0) {
+    const allRecords = getRecordsForExport();
+    if (allRecords.length === 0) {
       showToast('Chưa có điểm khảo sát nào khớp bộ lọc đang chọn!', 'warn');
       return;
     }
@@ -2240,88 +2430,145 @@
     }
     localStorage.setItem('ksl_gasWebAppUrl', state.gasWebAppUrl);
     if (bridgeInputEl) bridgeInputEl.value = state.gasWebAppUrl;
-
     const targetGasUrl = state.gasWebAppUrl || DEFAULT_GAS_URL;
 
-    let photoCount = 0;
-    records.forEach(r => {
-      if (r.photos) {
-        ['TongQuan', 'Can1', 'Can2'].forEach(tk => {
-          if (r.photos[tk] && r.photos[tk].stampedDataUrl) photoCount++;
+    // Chỉ nộp các điểm CHƯA nộp (hoặc đã sửa sau lần nộp trước)
+    let records = allRecords.filter(r => !isRecordSynced(r));
+    if (records.length === 0) {
+      const again = await new Promise(resolve => {
+        showModal({
+          title: '✅ Tất cả điểm đã được nộp',
+          html: `<p>${allRecords.length} điểm trong phạm vi này đều đã được máy chủ xác nhận.</p><p>Bạn có muốn <strong>nộp lại toàn bộ</strong> không?</p>`,
+          buttons: [
+            { label: 'Thôi', className: 'btn btn-outline btn-sm', onClick: () => resolve(false) },
+            { label: '🔁 Nộp lại toàn bộ', className: 'btn btn-yellow btn-sm', onClick: () => resolve(true) }
+          ]
         });
-      }
-    });
+      });
+      if (!again) return;
+      records = allRecords;
+    }
+
+    const includeRaw = !!document.getElementById('chkSaveRawPhotos')?.checked;
+    const batches = splitRecordsIntoBatches(records, includeRaw);
+    const nB = batches.length;
+    const prefix = getBaseExportPrefix(records);
+
+    const steps = batches.map((b, i) => ({
+      text: `Gói ${i + 1}/${nB}: ${b.length} điểm (${b[0].stt} → ${b[b.length - 1].stt})`,
+      status: 'pending'
+    }));
+    steps.push({ text: `Bảng tổng hợp Excel ${allRecords.length} điểm`, status: 'pending' });
 
     state.isUploading = true;
-    const steps = [
-      { text: `Bước 1/3: Đóng gói Excel & nén ${photoCount} ảnh có Code vào 1 gói .ZIP (${records.length} điểm)`, status: 'running' },
-      { text: `Bước 2/3: Nộp gói dữ liệu về kho chung (bảo mật)`, status: 'pending' },
-      { text: `Bước 3/3: Nhận biên nhận xác nhận từ máy chủ`, status: 'pending' }
-    ];
-    renderProgressStepUI(`⏳ ĐANG ĐÓNG GÓI & NỘP DỮ LIỆU...`, 5, steps);
+    const okRecords = [];
+    const failed = [];
+    let photoCount = 0;
+    let totalKB = 0;
+    const fileNames = [];
 
     try {
-      const prefix = getBaseExportPrefix(records);
-      const xlsxBuf = generateExcelWorkbookBuffer(records);
-      const xlsxBlob = new Blob([xlsxBuf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const xlsxName = `${prefix}.xlsx`;
-
-      const { blob: zipBlob, fileName: zipName } = await buildZipPackageBlob(records, (pct) => {
-        const mapped = 5 + Math.round(pct * 0.35);
-        renderProgressStepUI(`🔄 ĐANG NÉN GÓI .ZIP (${Math.round(pct)}%)...`, mapped, steps);
-      });
-
-      steps[0].status = 'done';
-      steps[1].status = 'running';
-      renderProgressStepUI(`🚀 ĐANG NỘP DỮ LIỆU (45%)...`, 45, steps);
-
-      const zipBase64 = await blobToBase64(zipBlob);
-      const xlsxBase64 = await blobToBase64(xlsxBlob);
-      const res = await postPayloadToAppsScript(
-        targetGasUrl,
-        {
-          zipName,
-          zipBase64,
-          xlsxName,
-          xlsxBase64,
-          surveyor: state.surveyorName,
-          totalPlots: records.length,
-          exportScope: state.exportRegionFilter || 'ALL'
-        },
-        (upPct) => {
-          const mapped = 45 + Math.round(upPct * 0.5);
-          renderProgressStepUI(`☁️ ĐANG NỘP DỮ LIỆU (${Math.round(upPct)}%)...`, mapped, steps);
+      for (let i = 0; i < nB; i++) {
+        const batch = batches[i];
+        steps[i].status = 'running';
+        const base = Math.round((i / (nB + 1)) * 100);
+        const span = 100 / (nB + 1);
+        renderProgressStepUI(`☁️ ĐANG NỘP GÓI ${i + 1}/${nB}...`, base, steps);
+        try {
+          const { blob: zipBlob } = await buildZipPackageBlob(batch, (pct) => {
+            renderProgressStepUI(`🔄 ĐANG NÉN GÓI ${i + 1}/${nB} (${Math.round(pct)}%)...`, base + Math.round(span * 0.4 * pct / 100), steps);
+          });
+          const zipName = nB > 1 ? `${prefix}_Goi${String(i + 1).padStart(2, '0')}of${String(nB).padStart(2, '0')}.zip` : `${prefix}.zip`;
+          renderProgressStepUI(`☁️ ĐANG GỬI GÓI ${i + 1}/${nB} (${Math.round(zipBlob.size / 1024)} KB)...`, base + Math.round(span * 0.5), steps);
+          const zipBase64 = await blobToBase64(zipBlob);
+          const res = await postPayloadToAppsScript(targetGasUrl, {
+            zipName,
+            zipBase64,
+            surveyor: state.surveyorName,
+            totalPlots: batch.length,
+            part: i + 1,
+            parts: nB,
+            stts: batch.map(r => r.stt),
+            exportScope: state.exportRegionFilter || 'ALL'
+          });
+          if (!(res.result && (res.result.zipId || res.result.zipUrl))) {
+            throw new Error('Máy chủ không xác nhận đã lưu file ZIP');
+          }
+          await markRecordsSynced(batch, { fileName: zipName });
+          okRecords.push(...batch);
+          fileNames.push(zipName);
+          totalKB += Math.round(zipBlob.size / 1024);
+          batch.forEach(r => {
+            ['TongQuan', 'Can1', 'Can2'].forEach(tk => {
+              if (r.photos && r.photos[tk] && r.photos[tk].stampedDataUrl) photoCount++;
+            });
+          });
+          steps[i].status = 'done';
+        } catch (err) {
+          steps[i].status = 'error';
+          steps[i].text += ` — LỖI: ${err.message}`;
+          failed.push(...batch);
+          // Lỗi mạng ở gói này không chặn các gói sau; điểm lỗi vẫn ở trạng thái "chưa nộp".
+          // Nhưng nếu máy chủ báo lỗi (VD: Drive đầy) thì dừng luôn, gửi tiếp cũng vô ích.
+          if (err.fatal) {
+            for (let j = i + 1; j < nB; j++) {
+              steps[j].status = "error";
+              steps[j].text += " — chưa gửi (máy chủ đang báo lỗi)";
+              failed.push(...batches[j]);
+            }
+            break;
+          }
         }
-      );
+      }
 
-      // Chỉ dùng phản hồi để XÁC NHẬN đã nhận file — tuyệt đối không hiển thị / lưu đường dẫn tải về
-      const serverConfirmed = !!(res && res.result && (res.result.zipId || res.result.zipUrl));
-      const sizeKB = Math.round(zipBlob.size / 1024);
+      // Bảng Excel tổng hợp toàn bộ phạm vi (không có ảnh, rất nhẹ)
+      const lastIdx = steps.length - 1;
+      steps[lastIdx].status = 'running';
+      renderProgressStepUI('📊 ĐANG NỘP BẢNG TỔNG HỢP...', Math.round((nB / (nB + 1)) * 100), steps);
+      try {
+        const xlsxBuf = generateExcelWorkbookBuffer(allRecords);
+        const xlsxBlob = new Blob([xlsxBuf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const xlsxRes = await postPayloadToAppsScript(targetGasUrl, {
+          xlsxName: `${getBaseExportPrefix(allRecords)}_TongHop.xlsx`,
+          xlsxBase64: await blobToBase64(xlsxBlob),
+          surveyor: state.surveyorName,
+          totalPlots: allRecords.length
+        });
+        steps[lastIdx].status = (xlsxRes.result && xlsxRes.result.xlsxUrl) ? 'done' : 'error';
+      } catch (err) {
+        steps[lastIdx].status = 'error';
+        steps[lastIdx].text += ` — LỖI: ${err.message}`;
+      }
 
-      steps[1].status = 'done';
-      steps[2].status = serverConfirmed ? 'done' : 'error';
-      steps[2].text = serverConfirmed
-        ? 'Bước 3/3: Máy chủ đã xác nhận nhận đủ gói dữ liệu'
-        : 'Bước 3/3: Đã gửi đi nhưng máy chủ chưa trả biên nhận (mạng chặn phản hồi)';
       const doneTime = formatShortTime(new Date().toISOString());
+      const allOk = failed.length === 0;
       renderProgressStepUI(
-        serverConfirmed ? `🎉 ĐÃ NỘP XONG 100% (LÚC ${doneTime})!` : `📨 ĐÃ GỬI ĐI (LÚC ${doneTime}) — CHƯA CÓ BIÊN NHẬN`,
-        100,
+        allOk
+          ? `🎉 ĐÃ NỘP XONG ${okRecords.length} ĐIỂM (LÚC ${doneTime})!`
+          : `⚠️ ĐÃ NỘP ${okRecords.length}/${records.length} ĐIỂM — ${failed.length} ĐIỂM CHƯA QUA, BẤM NỘP LẠI`,
+        allOk ? 100 : 99,
         steps
       );
-      if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
+      if (navigator.vibrate) navigator.vibrate(allOk ? [150, 80, 150] : [400]);
+      updateHeaderAndProgressUI();
+      if (typeof updateExportPreviewUI === "function") updateExportPreviewUI();
 
-      const receipt = addSubmitReceipt({
-        channel: 'server',
-        confirmed: serverConfirmed,
-        fileName: zipName,
-        points: records.length,
-        photos: photoCount,
-        sizeKB,
-        stts: records.map(r => r.stt)
-      });
-
-      showReceiptModal(receipt);
+      if (okRecords.length) {
+        const receipt = addSubmitReceipt({
+          channel: 'server',
+          confirmed: allOk,
+          fileName: fileNames.join(', '),
+          points: okRecords.length,
+          photos: photoCount,
+          sizeKB: totalKB,
+          stts: okRecords.map(r => r.stt),
+          failedStts: failed.map(r => r.stt)
+        });
+        showReceiptModal(receipt);
+      }
+      if (!allOk) {
+        showToast(`${failed.length} điểm chưa nộp được (${failed.map(r => r.stt).join(', ')}). Kiểm tra mạng rồi bấm NỘP lại — app chỉ gửi phần còn thiếu.`, 'error', 9000);
+      }
     } catch (err) {
       steps.forEach(s => { if (s.status === 'running') s.status = 'error'; });
       renderProgressStepUI(`⚠️ LỖI KHI NỘP: ${err.message}`, 60, steps);
@@ -2360,6 +2607,9 @@
 
   function describeReceiptStatus(r) {
     if (r.channel === 'server') {
+      if (r.failedStts && r.failedStts.length) {
+        return { icon: '⚠️', label: `NỘP MỘT PHẦN — ${r.failedStts.length} điểm chưa qua`, color: '#fb923c' };
+      }
       return r.confirmed
         ? { icon: '✅', label: 'ĐÃ NỘP — Máy chủ xác nhận', color: '#4ade80' }
         : { icon: '📨', label: 'ĐÃ GỬI — Chưa có biên nhận máy chủ', color: '#fde047' };
@@ -2381,6 +2631,7 @@
         <div>📦 <strong>Gói dữ liệu:</strong> <code>${r.fileName}</code> (~${r.sizeKB || 0} KB)</div>
         <div>🌾 <strong>Số điểm:</strong> ${r.points} điểm • 📸 <strong>Ảnh có Code:</strong> ${r.photos} ảnh</div>
         ${r.stts && r.stts.length ? `<div style="word-break:break-word;">📍 <strong>Mã điểm:</strong> ${r.stts.join(', ')}</div>` : ''}
+        ${r.failedStts && r.failedStts.length ? `<div style="word-break:break-word;color:#fdba74;">❌ <strong>Chưa nộp được:</strong> ${r.failedStts.join(', ')} — bấm NỘP lại, app chỉ gửi các điểm này.</div>` : ''}
       </div>
       <p style="margin-top:10px;font-size:0.8rem;color:#94a3b8;">
         🔒 Biên nhận chỉ để xem xác nhận. Vì bảo mật, máy không hiển thị đường dẫn kho dữ liệu và không tải lại được gói đã nộp.
@@ -3103,6 +3354,12 @@
         <div style="font-size:0.82rem;color:#86efac;font-weight:700;margin-bottom:6px;">
           🗺️ Phân bổ theo vùng: ${regionBreakdown}
         </div>
+        ${(() => {
+          const pending = records.filter(r => !isRecordSynced(r));
+          return pending.length
+            ? `<div style="font-size:0.84rem;color:#fdba74;font-weight:800;margin-bottom:6px;word-break:break-word;">☁️ Chưa nộp lên kho chung: ${pending.length}/${records.length} điểm (${pending.map(r => r.stt).join(', ')})</div>`
+            : (records.length ? `<div style="font-size:0.84rem;color:#4ade80;font-weight:800;margin-bottom:6px;">☁️ Đã nộp đủ ${records.length}/${records.length} điểm — máy chủ đã xác nhận</div>` : '');
+        })()}
         <ul style="padding-left:18px;line-height:1.55;color:var(--text-secondary);">
           <li>📊 <strong>${prefix}.xlsx</strong> &amp; <strong>.csv</strong> (${records.length} điểm, có sẵn cột <code>MaNhom</code>, <code>KhuVuc</code>, <code>MaNhom_GPS</code>)</li>
           <li>🗂️ <strong>DanhMuc_RuongDot1.json</strong> (${records.length} điểm ruộng Đợt 1)</li>
@@ -3539,12 +3796,13 @@
 
     // Tab 2: Map controls
     document.getElementById('btnLocateMeMap').addEventListener('click', () => {
-      requestCurrentGPS(false);
-      setTimeout(() => {
-        if (state.userGPS.x && state.userGPS.y && state.fullMap) {
-          state.fullMap.setView([state.userGPS.y, state.userGPS.x], 17);
-        }
-      }, 600);
+      const panTo = (lat, lon) => {
+        if (state.fullMap) state.fullMap.setView([lat, lon], 17);
+      };
+      requestCurrentGPS(false, {
+        onFirstFix: panTo,
+        onDone: (res) => panTo(res.lat, res.lon)
+      });
     });
 
     document.getElementById('btnFitAllPlots').addEventListener('click', fitAllSavedPlotsOnMap);
