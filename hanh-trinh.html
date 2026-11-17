@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hành trình tham quan 25–27/11/2026 – Trường ĐH An Giang</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  html,body{margin:0;height:100%;font-family:"Segoe UI",Arial,sans-serif;font-size:14px;color:#222}
+  #wrap{display:flex;height:100%}
+  #side{width:340px;overflow:auto;border-right:1px solid #ddd;background:#fafafa}
+  #map{flex:1}
+  h1{font-size:17px;margin:14px 14px 4px}
+  .sub{margin:0 14px 10px;color:#666;font-size:12.5px}
+  .day{margin:10px 12px;border-left:5px solid;padding:4px 10px;background:#fff;border-radius:4px}
+  .day h2{font-size:14.5px;margin:4px 0 6px}
+  .stop{margin:6px 0;cursor:pointer;line-height:1.35}
+  .stop:hover{text-decoration:underline}
+  .num{display:inline-block;width:20px;height:20px;border-radius:50%;color:#fff;text-align:center;line-height:20px;font-size:11.5px;font-weight:bold;margin-right:6px}
+  .t{color:#555;font-size:12px}
+  .km{font-size:12px;color:#444;margin-top:4px}
+  .note{margin:12px 14px;font-size:12px;color:#7a4b00;background:#fff6e0;border:1px solid #f1d38a;padding:8px;border-radius:4px}
+  .pin{width:26px;height:26px;border-radius:50%;color:#fff;font-weight:bold;text-align:center;line-height:24px;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.5);font-size:12px}
+  .leaflet-popup-content{font-size:13px;line-height:1.4}
+  @media(max-width:760px){#wrap{flex-direction:column}#side{width:auto;height:42%}}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="side">
+    <h1>Hành trình tham quan thực tế 25–27/11/2026</h1>
+    <p class="sub">Xuất phát và kết thúc tại Trường Đại học An Giang (Long Xuyên). Bấm vào từng điểm để phóng tới vị trí.</p>
+    <div id="days"></div>
+    <div class="km" style="margin:10px 14px"><b>Tổng quãng đường:</b> <span id="total">đang tính…</span></div>
+    <div class="note">
+      Vị trí các điểm là <b>gần đúng</b>, lấy theo địa chỉ trong lịch trình. Điểm có dấu * chưa có địa chỉ cụ thể.
+      Có thể <b>kéo ghim</b> tới đúng chỗ, tuyến đường sẽ tự vẽ lại. Tuyến đường theo mạng đường bộ OpenStreetMap (OSRM); khi không có mạng, tuyến hiện bằng nét đứt nối thẳng.
+    </div>
+  </div>
+  <div id="map"></div>
+</div>
+<script>
+if(typeof L==='undefined'){document.body.innerHTML='<p style="padding:20px;font-size:16px">Không tải được thư viện bản đồ. Hãy tải file về máy và mở bằng Chrome/Edge khi có mạng Internet (không xem trong khung xem trước của Claude).</p>';throw new Error('no leaflet');}
+const DAYS = [
+  {name:"Ngày 1 – Thứ Năm 25/11/2026", color:"#d62728", stops:[
+    {id:"S", name:"Trường Đại học An Giang", t:"Xuất phát", addr:"18 Ung Văn Khiêm, phường Long Xuyên, An Giang", ll:[10.3716,105.4326]},
+    {id:"1a", name:"Vườn khóm – cau – dừa", t:"8:00 – tham quan, nghe chia sẻ", addr:"373 Quốc lộ 61, khu phố Minh Phú, Minh Lương, Châu Thành (≈100 km)", ll:[9.9045,105.1665]},
+    {id:"1b", name:"Cống Cái Lớn – Cái Bé", t:"9:30 – tham quan công trình thủy lợi", addr:"Châu Thành – An Biên", ll:[9.8860,105.1180]},
+    {id:"1c", name:"Trang trại lúa mùa*", t:"10:00 – tham quan, nghe giới thiệu; 12:00 ăn trưa", addr:"Khu vực An Biên (chưa có địa chỉ cụ thể)", ll:[9.8350,105.0750]}
+  ]},
+  {name:"Ngày 2 – Thứ Sáu 26/11/2026", color:"#1f77b4", stops:[
+    {id:"2a", name:"Nhà máy điện gió Bạc Liêu", t:"Nguyên lý, quy trình sản xuất điện gió; năng lượng tái tạo và thích ứng BĐKH", addr:"Ấp Biển Đông A, phường Hiệp Thành, TP Bạc Liêu, tỉnh Cà Mau", ll:[9.2370,105.8250]},
+    {id:"2b", name:"Trường Đại học Bạc Liêu", t:"Môi trường học tập, đào tạo, NCKH; trao đổi đào tạo nhân lực nông nghiệp – nông thôn", addr:"178 Võ Thị Sáu, phường Bạc Liêu, tỉnh Cà Mau", ll:[9.2862,105.7445]},
+    {id:"2c", name:"Nghỉ đêm tại TP Bạc Liêu", t:"Lưu trú", addr:"Trung tâm TP Bạc Liêu", ll:[9.2850,105.7250]}
+  ]},
+  {name:"Ngày 3 – Thứ Bảy 27/11/2026", color:"#2ca02c", stops:[
+    {id:"3a", name:"Mô hình Vườn – Ao – Chuồng", t:"Nông nghiệp tổng hợp, tái sử dụng phụ phẩm, giảm chi phí đầu vào", addr:"430 Phạm Hùng, phường Sóc Trăng, TP Cần Thơ", ll:[9.6080,105.9620]},
+    {id:"3b", name:"Chùa Dơi (Mahatup)*", t:"Viếng chùa nổi tiếng Sóc Trăng (tạm chọn Chùa Dơi)", addr:"Đường Văn Ngọc Chính, phường Sóc Trăng, TP Cần Thơ", ll:[9.5946,105.9850]},
+    {id:"E", name:"Về Trường Đại học An Giang", t:"Kết thúc hành trình", addr:"Long Xuyên", ll:[10.3716,105.4326]}
+  ]}
+];
+
+const map = L.map('map', {zoomControl:true});
+const osm = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd',attribution:'&copy; OpenStreetMap, &copy; CARTO'}).addTo(map);
+const sat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Ảnh vệ tinh &copy; Esri'});
+const topo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'&copy; Esri'});
+L.control.layers({"Bản đồ đường (OSM)":osm,"Ảnh vệ tinh (Esri)":sat,"Bản đồ đường (Esri)":topo},{},{collapsed:false}).addTo(map);
+L.control.scale({imperial:false}).addTo(map);
+
+const markers = {}; const routeLayers = []; const dayKm = [];
+let n = 0;
+DAYS.forEach((d,di)=>{
+  d.stops.forEach((s,si)=>{
+    if (s.id==="E") return;               // dùng chung ghim với điểm xuất phát
+    const label = s.id==="S" ? "AGU" : (++n);
+    const icon = L.divIcon({className:"",html:`<div class="pin" style="background:${d.color};${s.id==='S'?'width:34px;border-radius:13px':''}">${label}</div>`,iconSize:[26,26],iconAnchor:[13,13]});
+    const m = L.marker(s.ll,{icon,draggable:true,title:s.name}).addTo(map)
+      .bindPopup(`<b>${s.name}</b><br>${s.t}<br><span style="color:#666">${s.addr}</span>`);
+    m.on('dragend',()=>{ s.ll=[m.getLatLng().lat,m.getLatLng().lng];
+      DAYS.forEach(dd=>dd.stops.forEach(x=>{ if((s.id==="S"&&x.id==="E")) x.ll=s.ll; }));
+      drawRoutes(); });
+    s.label = label; markers[s.id]=m;
+  });
+});
+markers["E"] = markers["S"];
+
+// Thanh bên
+const box = document.getElementById('days');
+DAYS.forEach((d,di)=>{
+  const div = document.createElement('div'); div.className='day'; div.style.borderColor=d.color;
+  div.innerHTML = `<h2 style="color:${d.color}">${d.name}</h2>`;
+  d.stops.forEach(s=>{
+    const lab = s.id==="E" ? "AGU" : s.label;
+    const p = document.createElement('div'); p.className='stop';
+    p.innerHTML = `<span class="num" style="background:${d.color};${lab==='AGU'?'width:34px;border-radius:10px':''}">${lab}</span><b>${s.name}</b><br><span class="t">${s.t}</span>`;
+    p.onclick = ()=>{ map.setView(s.ll,14); markers[s.id].openPopup(); };
+    div.appendChild(p);
+  });
+  const km = document.createElement('div'); km.className='km'; km.id='km'+di; km.textContent='Quãng đường: đang tính…';
+  div.appendChild(km); box.appendChild(div);
+});
+
+// Điểm đầu mỗi ngày: ngày 2 xuất phát từ điểm cuối ngày 1, ngày 3 từ nơi nghỉ đêm
+function dayPoints(di){
+  const pts = DAYS[di].stops.map(s=>s.ll);
+  if (di>0){ const prev = DAYS[di-1].stops; pts.unshift(prev[prev.length-1].ll); }
+  return pts;
+}
+async function osrm(pts){
+  const q = pts.map(p=>p[1]+','+p[0]).join(';');
+  const r = await fetch(`https://router.project-osrm.org/route/v1/driving/${q}?overview=full&geometries=geojson`);
+  const j = await r.json(); if (j.code!=="Ok") throw new Error(j.code);
+  return {coords:j.routes[0].geometry.coordinates.map(c=>[c[1],c[0]]), km:j.routes[0].distance/1000};
+}
+function hav(a,b){const R=6371,t=Math.PI/180,dl=(b[0]-a[0])*t,dn=(b[1]-a[1])*t;
+  const x=Math.sin(dl/2)**2+Math.cos(a[0]*t)*Math.cos(b[0]*t)*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(x));}
+async function drawRoutes(){
+  routeLayers.forEach(l=>map.removeLayer(l)); routeLayers.length=0;
+  let total=0, approx=false;
+  for (let di=0; di<DAYS.length; di++){
+    const pts = dayPoints(di), c = DAYS[di].color, el = document.getElementById('km'+di);
+    try{
+      const r = await osrm(pts);
+      routeLayers.push(L.polyline(r.coords,{color:"#fff",weight:8,opacity:.8}).addTo(map));
+      routeLayers.push(L.polyline(r.coords,{color:c,weight:5,opacity:.9}).addTo(map).bindTooltip(DAYS[di].name,{sticky:true}));
+      el.textContent = `Quãng đường: ≈ ${r.km.toFixed(0)} km (theo đường bộ)`; total+=r.km;
+    }catch(e){
+      approx=true; let km=0; for(let i=1;i<pts.length;i++) km+=hav(pts[i-1],pts[i]);
+      routeLayers.push(L.polyline(pts,{color:c,weight:4,dashArray:"8 8"}).addTo(map));
+      el.textContent = `Quãng đường: ≈ ${km.toFixed(0)} km (đường chim bay – chưa tải được tuyến)`; total+=km;
+    }
+  }
+  document.getElementById('total').textContent = `≈ ${total.toFixed(0)} km` + (approx?" (có đoạn tính theo đường chim bay)":"");
+}
+const all = DAYS.flatMap(d=>d.stops.map(s=>s.ll));
+map.fitBounds(L.latLngBounds(all).pad(0.08));
+drawRoutes();
+</script>
+</body>
+</html>
