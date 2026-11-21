@@ -1243,3 +1243,54 @@ body.theme-light .region-badge-TRA_VINH {
   padding: 0 5px;
   font-size: 10px;
 }
+
+/* ===== v4.3: Ký hiệu điểm gọn + bản đồ toàn màn hình ===== */
+.plot-mk-wrap { background: transparent; border: none; }
+.plot-mk { position: relative; width: 100%; height: 100%; }
+.plot-mk-dot {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+.plot-mk-todo .plot-mk-dot { background: #ea580c; }
+.plot-mk-done .plot-mk-dot { background: #16a34a; }
+.plot-mk-selected .plot-mk-dot {
+  background: #0284c7;
+  border-color: #facc15;
+  box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.45), 0 1px 4px rgba(0, 0, 0, 0.7);
+}
+.plot-mk-lbl {
+  position: absolute;
+  left: calc(100% + 3px);
+  bottom: calc(100% - 4px);
+  white-space: nowrap;
+  font: 800 10px/1.2 sans-serif;
+  color: #ffffff;
+  background: rgba(15, 23, 42, 0.72);
+  border-left: 3px solid #38bdf8;
+  border-radius: 3px;
+  padding: 1px 4px;
+  pointer-events: none;
+}
+.plot-mk-selected .plot-mk-lbl { background: rgba(2, 132, 199, 0.9); font-size: 11px; }
+
+.map-fs-btn {
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 30px !important;
+  text-align: center;
+  cursor: pointer;
+}
+.leaflet-container.map-fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  z-index: 1500 !important; /* trên thanh đầu/cuối (1000), dưới hộp thoại (2000) và thông báo (3000) */
+}
+body.has-map-fullscreen { overflow: hidden; }
