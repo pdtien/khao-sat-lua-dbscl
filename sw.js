@@ -1,11 +1,11 @@
-const CACHE_NAME = 'khao-sat-lua-pwa-v4.2';
+const CACHE_NAME = 'khao-sat-lua-pwa-v4.3';
 const TILE_CACHE_NAME = 'khao-sat-lua-tiles-v1';
 
 const STATIC_ASSETS = [
   './',
   './index.html',
-  './styles.css?v=4.2',
-  './app.js?v=4.2',
+  './styles.css?v=4.3',
+  './app.js?v=4.3',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -14,8 +14,8 @@ const STATIC_ASSETS = [
   './vendor/jszip.min.js',
   './vendor/xlsx.full.min.js',
   './vendor/qrcode.min.js',
-  './data/region_bounds.js?v=4.2',
-  './data/presets_dbscl.js?v=4.2'
+  './data/region_bounds.js?v=4.3',
+  './data/presets_dbscl.js?v=4.3'
 ];
 
 self.addEventListener('install', (event) => {

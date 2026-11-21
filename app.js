@@ -1336,16 +1336,18 @@
   function createSatelliteLayers() {
     const esriSat = L.tileLayer(
       'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      { maxZoom: 19, attribution: 'Tiles &copy; Esri' }
+      // Ảnh Esri ở nông thôn ĐBSCL thường chỉ có tới mức 17–18; phóng to hơn sẽ ra ô xám
+      // "Map data not yet available". Dùng ảnh mức 18 và phóng to phần mềm tới mức 21.
+      { maxNativeZoom: 18, maxZoom: 21, attribution: 'Tiles &copy; Esri' }
     );
     const roadLabels = L.tileLayer(
       'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-      { maxZoom: 19, pane: 'overlayPane' }
+      { maxNativeZoom: 18, maxZoom: 21, pane: 'overlayPane' }
     );
     const hybridGroup = L.layerGroup([esriSat, roadLabels]);
     const osmStreet = L.tileLayer(
       'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      { maxZoom: 19, attribution: '&copy; OpenStreetMap' }
+      { maxNativeZoom: 19, maxZoom: 21, attribution: '&copy; OpenStreetMap' }
     );
     return { hybridGroup, osmStreet };
   }
@@ -1379,6 +1381,47 @@
     });
   }
 
+  // Nút phóng bản đồ ra toàn màn hình. Dùng CSS (position: fixed) thay vì Fullscreen API
+  // vì Safari trên iPhone không cho phóng toàn màn hình một khung bản đồ.
+  function setMapFullscreen(map, on) {
+    const el = map.getContainer();
+    el.classList.toggle('map-fullscreen', on);
+    document.body.classList.toggle('has-map-fullscreen', on);
+    const btn = el.querySelector('.map-fs-btn');
+    if (btn) {
+      btn.textContent = on ? '✕' : '⛶';
+      btn.title = on ? 'Thu nhỏ bản đồ' : 'Phóng toàn màn hình';
+    }
+    map._kslFullscreen = on;
+    setTimeout(() => map.invalidateSize(), 60);
+  }
+
+  function addFullscreenControl(map) {
+    const Ctl = L.Control.extend({
+      options: { position: 'topleft' },
+      onAdd() {
+        const wrap = L.DomUtil.create('div', 'leaflet-bar');
+        const a = L.DomUtil.create('a', 'map-fs-btn', wrap);
+        a.href = '#';
+        a.setAttribute('role', 'button');
+        a.textContent = '⛶';
+        a.title = 'Phóng toàn màn hình';
+        L.DomEvent.disableClickPropagation(wrap);
+        L.DomEvent.on(a, 'click', (e) => {
+          L.DomEvent.preventDefault(e);
+          setMapFullscreen(map, !map._kslFullscreen);
+        });
+        return wrap;
+      }
+    });
+    map.addControl(new Ctl());
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    [state.miniMap, state.fullMap].forEach(m => { if (m && m._kslFullscreen) setMapFullscreen(m, false); });
+  });
+
   function initMaps() {
     const center = getRegionMeta(state.currentRegion).center || [10.3000, 105.7500];
     const defaultLat = center[0];
@@ -1388,6 +1431,7 @@
     state.miniMap = L.map('miniMap', {
       center: [defaultLat, defaultLon],
       zoom: 12,
+      maxZoom: 21,
       layers: [layers1.hybridGroup],
       zoomControl: true
     });
@@ -1399,6 +1443,7 @@
 
     state.miniBoundariesLayer = L.layerGroup().addTo(state.miniMap);
     state.miniMarkersLayer = L.layerGroup().addTo(state.miniMap);
+    addFullscreenControl(state.miniMap);
     state.miniMap.on('click', (e) => {
       if (state.isCoordLocked) {
         showToast('🔒 Tọa độ điểm này đã CHỐT khóa! Bấm "🔓 Mở khóa sửa lại X, Y" nếu muốn dời vị trí.', 'warn');
@@ -1411,6 +1456,7 @@
     state.fullMap = L.map('fullMap', {
       center: [10.1800, 105.9000],
       zoom: 9,
+      maxZoom: 21,
       layers: [layers2.hybridGroup],
       zoomControl: true
     });
@@ -1422,6 +1468,7 @@
 
     state.fullBoundariesLayer = L.layerGroup().addTo(state.fullMap);
     state.fullMarkersLayer = L.layerGroup().addTo(state.fullMap);
+    addFullscreenControl(state.fullMap);
     state.fullMap.on('click', (e) => {
       if (state.isCoordLocked) {
         showToast('🔒 Tọa độ điểm này đã CHỐT khóa! Bấm "🔓 Mở khóa sửa lại X, Y" nếu muốn dời vị trí.', 'warn');
@@ -1479,20 +1526,18 @@
         if (regCounts[regCode] !== undefined) regCounts[regCode]++;
       }
 
-      const pinClass = isSelected
-        ? 'plot-pin plot-pin-selected'
-        : rec
-          ? 'plot-pin plot-pin-done'
-          : 'plot-pin plot-pin-todo';
+      // Ký hiệu gọn: chấm tròn nhỏ đúng tại tọa độ + nhãn mã điểm nhỏ lệch lên trên,
+      // không che mất ruộng khi phóng to.
+      const mkClass = isSelected ? 'plot-mk plot-mk-selected' : rec ? 'plot-mk plot-mk-done' : 'plot-mk plot-mk-todo';
       const pinLabel = rec ? `${stt}✓` : stt;
-      const borderCol = isSelected ? '#facc15' : regMeta.color;
+      const dotSize = isSelected ? 16 : 12;
 
       const icon = L.divIcon({
-        className: '',
-        html: `<div class="${pinClass}" style="min-width:42px;height:30px;border-color:${borderCol};">${pinLabel}</div>`,
-        iconSize: [42, 30],
-        iconAnchor: [21, 15],
-        popupAnchor: [0, -14]
+        className: 'plot-mk-wrap',
+        html: `<div class="${mkClass}"><span class="plot-mk-dot"></span><span class="plot-mk-lbl" style="border-left-color:${regMeta.color};">${pinLabel}</span></div>`,
+        iconSize: [dotSize, dotSize],
+        iconAnchor: [dotSize / 2, dotSize / 2],
+        popupAnchor: [0, -dotSize / 2]
       });
 
       const popupHTML = `
@@ -3994,7 +4039,7 @@
 
   function registerServiceWorker() {
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-      navigator.serviceWorker.register('./sw.js?v=4.2', { scope: './' }).then(reg => {
+      navigator.serviceWorker.register('./sw.js?v=4.3', { scope: './' }).then(reg => {
         if (reg && reg.update) reg.update();
       }).catch(() => {});
     }
