@@ -2539,16 +2539,15 @@
       records = allRecords;
     }
 
-    const includeRaw = !!document.getElementById('chkSaveRawPhotos')?.checked;
-    const batches = splitRecordsIntoBatches(records, includeRaw);
+    // Gói nộp lên Drive không kèm ảnh gốc (nặng gấp ~3 lần); ảnh gốc chỉ có trong gói lưu máy/Zalo.
+    const batches = splitRecordsIntoBatches(records, false);
     const nB = batches.length;
-    const prefix = getBaseExportPrefix(records);
 
     const steps = batches.map((b, i) => ({
       text: `Gói ${i + 1}/${nB}: ${b.length} điểm (${b[0].stt} → ${b[b.length - 1].stt})`,
       status: 'pending'
     }));
-    steps.push({ text: `Bảng tổng hợp Excel ${allRecords.length} điểm`, status: 'pending' });
+    steps.push({ text: `Bảng Excel các điểm nộp lần này`, status: 'pending' });
 
     state.isUploading = true;
     // Giữ màn hình sáng khi đang nộp: điện thoại tắt màn hình / chuyển app khác
@@ -2574,8 +2573,9 @@
         try {
           const { blob: zipBlob } = await buildZipPackageBlob(batch, (pct) => {
             renderProgressStepUI(`🔄 ĐANG NÉN GÓI ${i + 1}/${nB} (${Math.round(pct)}%)...`, base + Math.round(span * 0.4 * pct / 100), steps);
-          });
-          const zipName = nB > 1 ? `${prefix}_Goi${String(i + 1).padStart(2, '0')}of${String(nB).padStart(2, '0')}.zip` : `${prefix}.zip`;
+          }, { mode: 'upload' });
+          const zipName = `${getBaseExportPrefix(batch)}_${getSttRangeTag(batch)}` +
+            (nB > 1 ? `_Goi${String(i + 1).padStart(2, '0')}of${String(nB).padStart(2, '0')}` : '') + '_Anh.zip';
           renderProgressStepUI(`☁️ ĐANG GỬI GÓI ${i + 1}/${nB} (${Math.round(zipBlob.size / 1024)} KB)...`, base + Math.round(span * 0.5), steps);
           const zipBase64 = await blobToBase64(zipBlob);
           const res = await postPayloadToAppsScript(targetGasUrl, {
@@ -2618,23 +2618,32 @@
         }
       }
 
-      // Bảng Excel tổng hợp toàn bộ phạm vi (không có ảnh, rất nhẹ)
+      // 1 bảng Excel cho đúng các điểm đã nộp thành công LẦN NÀY (không lặp lại điểm của
+      // các lần nộp trước). Mỗi gói ảnh vẫn có file CSV riêng nên dữ liệu không mất nếu bước này lỗi.
       const lastIdx = steps.length - 1;
-      steps[lastIdx].status = 'running';
-      renderProgressStepUI('📊 ĐANG NỘP BẢNG TỔNG HỢP...', Math.round((nB / (nB + 1)) * 100), steps);
-      try {
-        const xlsxBuf = generateExcelWorkbookBuffer(allRecords);
-        const xlsxBlob = new Blob([xlsxBuf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-        const xlsxRes = await postPayloadToAppsScript(targetGasUrl, {
-          xlsxName: `${getBaseExportPrefix(allRecords)}_TongHop.xlsx`,
-          xlsxBase64: await blobToBase64(xlsxBlob),
-          surveyor: state.surveyorName,
-          totalPlots: allRecords.length
-        });
-        steps[lastIdx].status = (xlsxRes.result && xlsxRes.result.xlsxUrl) ? 'done' : 'error';
-      } catch (err) {
+      if (okRecords.length) {
+        steps[lastIdx].status = 'running';
+        steps[lastIdx].text = `Bảng Excel ${okRecords.length} điểm nộp lần này (${getSttRangeTag(okRecords)})`;
+        renderProgressStepUI('📊 ĐANG NỘP BẢNG EXCEL...', Math.round((nB / (nB + 1)) * 100), steps);
+        try {
+          const xlsxBuf = generateExcelWorkbookBuffer(okRecords);
+          const xlsxBlob = new Blob([xlsxBuf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+          const xlsxName = `${getBaseExportPrefix(okRecords)}_${getSttRangeTag(okRecords)}.xlsx`;
+          const xlsxRes = await postPayloadToAppsScript(targetGasUrl, {
+            xlsxName,
+            xlsxBase64: await blobToBase64(xlsxBlob),
+            surveyor: state.surveyorName,
+            totalPlots: okRecords.length
+          });
+          steps[lastIdx].status = (xlsxRes.result && xlsxRes.result.xlsxUrl) ? 'done' : 'error';
+          if (steps[lastIdx].status === 'done') fileNames.push(xlsxName);
+        } catch (err) {
+          steps[lastIdx].status = 'error';
+          steps[lastIdx].text += ` — LỖI: ${err.message} (dữ liệu vẫn có trong file CSV của từng gói)`;
+        }
+      } else {
         steps[lastIdx].status = 'error';
-        steps[lastIdx].text += ` — LỖI: ${err.message}`;
+        steps[lastIdx].text = 'Bảng Excel: bỏ qua vì chưa có gói nào nộp thành công';
       }
 
       const doneTime = formatShortTime(new Date().toISOString());
@@ -2825,7 +2834,7 @@
     });
 
     const steps = [
-      { text: `Bước 1/3: Tạo bảng Excel (.xlsx), CSV & Bản đồ GIS (${records.length} điểm)`, status: 'running' },
+      { text: `Bước 1/3: Tạo bảng Excel (.xlsx) & Bản đồ GIS (${records.length} điểm)`, status: 'running' },
       { text: `Bước 2/3: Nén ${photoCount} ảnh đã đóng dấu Code vào gói .ZIP`, status: 'pending' },
       { text: `Bước 3/3: Xuất gói file .ZIP hoàn tất 100%`, status: 'pending' }
     ];
@@ -3346,16 +3355,65 @@
     return bytes;
   }
 
-  async function buildZipPackageBlob(customRecords, onProgress) {
+  // Hai loại gói:
+  //  - mode 'full' (lưu vào máy / gửi Zalo): bản dự phòng đầy đủ — Excel, danh mục JSON
+  //    (để nhập sang máy khác), GeoJSON + KML, ảnh có Code, và ảnh gốc nếu có tick.
+  //  - mode 'upload' (nộp lên Drive theo từng gói nhỏ): CHỈ ảnh có Code + 1 file CSV
+  //    liệt kê các điểm trong gói. Bảng Excel được gửi riêng 1 lần cho mỗi lần nộp,
+  //    nên không lặp xlsx/json/geojson/kml ở mọi gói; không kèm ảnh gốc cho nhẹ.
+  // VD: "CT01-CT18" (hoặc "CT05" nếu chỉ 1 điểm)
+  function getSttRangeTag(records) {
+    if (!records.length) return '';
+    const s = records.map(r => r.stt).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    return s.length === 1 ? s[0] : `${s[0]}-${s[s.length - 1]}`;
+  }
+
+  // Ảnh JPEG đã nén sẵn → lưu kiểu STORE (không nén lại, nhanh hơn, dung lượng như nhau).
+  // Tránh trùng tên ảnh trong gói: trùng thì thêm hậu tố _2, _3... (trước đây file sau đè mất file trước).
+  function addPhotosToZip(zip, records, includeRaw) {
+    const folderCoded = zip.folder('Anh_Co_Code');
+    const folderRaw = includeRaw ? zip.folder('Anh_Goc_Sach_AI') : null;
+    const used = new Set();
+    const uniqueName = (name) => {
+      if (!used.has(name)) { used.add(name); return name; }
+      let i = 2;
+      let alt;
+      do { alt = name.replace(/\.jpg$/i, `_${i++}.jpg`); } while (used.has(alt));
+      used.add(alt);
+      return alt;
+    };
+    records.forEach(r => {
+      if (!r.photos) return;
+      ['TongQuan', 'Can1', 'Can2'].forEach(tk => {
+        const p = r.photos[tk];
+        if (!p || !p.stampedDataUrl) return;
+        const fName = uniqueName(p.fileName || `Dot1_${r.stt}_${r.surveyorCode}_${tk}.jpg`);
+        folderCoded.file(fName, dataUrlToUint8Array(p.stampedDataUrl), { compression: 'STORE' });
+        if (folderRaw && p.rawDataUrl) {
+          folderRaw.file(fName.replace(/\.jpg$/i, '_RAW.jpg'), dataUrlToUint8Array(p.rawDataUrl), { compression: 'STORE' });
+        }
+      });
+    });
+  }
+
+  async function buildZipPackageBlob(customRecords, onProgress, opts = {}) {
+    const mode = opts.mode === 'upload' ? 'upload' : 'full';
     const records = customRecords || getRecordsForExport();
     const prefix = getBaseExportPrefix(records);
     const zip = new JSZip();
 
+    if (mode === 'upload') {
+      zip.file(`${prefix}_${getSttRangeTag(records)}.csv`, generateCSVWithBOM(records));
+      addPhotosToZip(zip, records, false);
+      const blobU = await zip.generateAsync(
+        { type: 'blob', compression: 'STORE' },
+        (meta) => { if (typeof onProgress === 'function') onProgress(meta.percent || 0); }
+      );
+      return { blob: blobU, fileName: `${prefix}.zip`, count: records.length };
+    }
+
     const xlsxBuf = generateExcelWorkbookBuffer(records);
     zip.file(`${prefix}.xlsx`, xlsxBuf);
-
-    const csvStr = generateCSVWithBOM(records);
-    zip.file(`${prefix}.csv`, csvStr);
 
     const masterList = records.map(r => {
       const maNhom = resolveRecordRegion(r);
@@ -3383,23 +3441,7 @@
     zip.file(`${prefix}.geojson`, generateGeoJSONString(records));
     zip.file(`${prefix}.kml`, generateKMLString(records));
 
-    const folderCoded = zip.folder('Anh_Co_Code');
-    const includeRaw = document.getElementById('chkSaveRawPhotos').checked;
-    const folderRaw = includeRaw ? zip.folder('Anh_Goc_Sach_AI') : null;
-
-    records.forEach(r => {
-      if (!r.photos) return;
-      ['TongQuan', 'Can1', 'Can2'].forEach(tk => {
-        const p = r.photos[tk];
-        if (p && p.stampedDataUrl) {
-          const fName = p.fileName || `Dot1_${r.stt}_${r.surveyorCode}_${tk}.jpg`;
-          folderCoded.file(fName, dataUrlToUint8Array(p.stampedDataUrl));
-          if (includeRaw && folderRaw && p.rawDataUrl) {
-            folderRaw.file(fName.replace('.jpg', '_RAW.jpg'), dataUrlToUint8Array(p.rawDataUrl));
-          }
-        }
-      });
-    });
+    addPhotosToZip(zip, records, !!document.getElementById('chkSaveRawPhotos')?.checked);
 
     const blob = await zip.generateAsync(
       { type: 'blob', compression: 'DEFLATE' },
@@ -3458,11 +3500,21 @@
             ? `<div style="font-size:0.84rem;color:#fdba74;font-weight:800;margin-bottom:6px;word-break:break-word;">☁️ Chưa nộp lên kho chung: ${pending.length}/${records.length} điểm (${pending.map(r => r.stt).join(', ')})</div>`
             : (records.length ? `<div style="font-size:0.84rem;color:#4ade80;font-weight:800;margin-bottom:6px;">☁️ Đã nộp đủ ${records.length}/${records.length} điểm — máy chủ đã xác nhận</div>` : '');
         })()}
-        <ul style="padding-left:18px;line-height:1.55;color:var(--text-secondary);">
-          <li>📊 <strong>${prefix}.xlsx</strong> &amp; <strong>.csv</strong> (${records.length} điểm, có sẵn cột <code>MaNhom</code>, <code>KhuVuc</code>, <code>MaNhom_GPS</code>)</li>
-          <li>🗂️ <strong>DanhMuc_RuongDot1.json</strong> (${records.length} điểm ruộng Đợt 1)</li>
+        ${records.filter(r => !isRecordSynced(r)).length > 25
+          ? `<div style="font-size:0.82rem;color:#fde047;font-weight:700;margin-bottom:6px;">💡 Nên nộp theo buổi, mỗi lần khoảng 15–25 điểm (bằng Wi-Fi/4G mạnh) để nhanh và ít lỗi.</div>`
+          : ''}
+        <div style="font-size:0.82rem;font-weight:800;color:#7dd3fc;margin:4px 0 2px;">☁️ Cách 1 — Nộp về kho chung (nhẹ):</div>
+        <ul style="padding-left:18px;line-height:1.5;color:var(--text-secondary);margin-bottom:6px;">
+          <li>Các gói <strong>…_Anh.zip</strong> (~4 MB/gói): ảnh có Code + 1 file .csv các điểm trong gói</li>
+          <li>1 file <strong>.xlsx</strong> cho đúng các điểm nộp lần đó (không lặp điểm đã nộp trước)</li>
+          <li>Không kèm ảnh gốc</li>
+        </ul>
+        <div style="font-size:0.82rem;font-weight:800;color:#86efac;margin:4px 0 2px;">💬 Cách 2 — Gói đầy đủ lưu máy / Zalo (${prefix}.zip):</div>
+        <ul style="padding-left:18px;line-height:1.5;color:var(--text-secondary);">
+          <li>📊 <strong>${prefix}.xlsx</strong> (${records.length} điểm, có sẵn cột <code>MaNhom</code>, <code>KhuVuc</code>, <code>MaNhom_GPS</code>)</li>
+          <li>🗂️ <strong>DanhMuc_RuongDot1.json</strong> (để nhập danh mục ruộng sang máy khác)</li>
           <li>🌍 <strong>${prefix}.geojson</strong> &amp; <strong>.kml</strong> (Mở trực tiếp trên Google Earth / QGIS)</li>
-          <li>🖼️ Thư mục <strong>Anh_Co_Code/</strong> (${photoCount} ảnh JPEG đã đóng dấu mã Vùng &amp; Code)</li>
+          <li>🖼️ Thư mục <strong>Anh_Co_Code/</strong> (${photoCount} ảnh JPEG đã đóng dấu mã Vùng &amp; Code)${document.getElementById('chkSaveRawPhotos')?.checked ? ' + <strong>Anh_Goc_Sach_AI/</strong> (ảnh gốc, nặng gấp ~2 lần)' : ''}</li>
         </ul>
       `;
     }
@@ -4039,7 +4091,7 @@
 
   function registerServiceWorker() {
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-      navigator.serviceWorker.register('./sw.js?v=4.3', { scope: './' }).then(reg => {
+      navigator.serviceWorker.register('./sw.js?v=4.4', { scope: './' }).then(reg => {
         if (reg && reg.update) reg.update();
       }).catch(() => {});
     }

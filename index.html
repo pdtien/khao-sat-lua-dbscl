@@ -11,7 +11,7 @@
   <link rel="icon" type="image/png" href="./icons/icon-192.png" />
   <link rel="apple-touch-icon" href="./icons/icon-192.png" />
   <link rel="stylesheet" href="./vendor/leaflet.css" />
-  <link rel="stylesheet" href="./styles.css?v=4.3" />
+  <link rel="stylesheet" href="./styles.css?v=4.4" />
   <script>
     (function () {
       try {
@@ -23,7 +23,7 @@
         if ('caches' in window) {
           caches.keys().then(function (keys) {
             keys.forEach(function (k) {
-              if (k.indexOf('khao-sat-lua-pwa-v') === 0 && k !== 'khao-sat-lua-pwa-v4.3') {
+              if (k.indexOf('khao-sat-lua-pwa-v') === 0 && k !== 'khao-sat-lua-pwa-v4.4') {
                 caches.delete(k);
               }
             });
@@ -531,7 +531,7 @@
           <span>Ảnh chụp tự động nén JPEG (≤1280px) và đóng dấu nhãn Code (Mã điểm, Người KS, Tọa độ X/Y, Ngày giờ, GĐ, Nước).</span>
           <label style="display:inline-flex;align-items:center;gap:6px;font-weight:800;color:#86efac;cursor:pointer;">
             <input type="checkbox" id="chkSaveRawPhotos" style="width:18px;height:18px;" />
-            <span>Lưu kèm thư mục ảnh gốc sạch cho AI</span>
+            <span>Lưu kèm ảnh gốc sạch cho AI <small style="font-weight:600;color:#fde047;">(chỉ trong gói lưu máy/Zalo, nặng gấp ~3 lần; không gửi lên kho chung)</small></span>
           </label>
         </div>
 
@@ -920,8 +920,8 @@
   <script src="./vendor/jszip.min.js"></script>
   <script src="./vendor/xlsx.full.min.js"></script>
   <script src="./vendor/qrcode.min.js"></script>
-  <script src="./data/region_bounds.js?v=4.3"></script>
-  <script src="./data/presets_dbscl.js?v=4.3"></script>
-  <script src="./app.js?v=4.3"></script>
+  <script src="./data/region_bounds.js?v=4.4"></script>
+  <script src="./data/presets_dbscl.js?v=4.4"></script>
+  <script src="./app.js?v=4.4"></script>
 </body>
 </html>
